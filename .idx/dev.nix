@@ -1,53 +1,37 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://developers.google.com/idx/guides/customize-idx-env
-{ pkgs, ... }: {
-  # Which nixpkgs channel to use.
-  channel = "stable-24.11"; # or "unstable"
-  # Use https://search.nixos.org/packages to find packages
+{ pkgs, lib, ... }: {
+
+  # Add the packages that your project needs
   packages = [
-    # pkgs.go
-    # pkgs.python311
-    # pkgs.python311Packages.pip
-    # pkgs.nodejs_22
-    # pkgs.nodePackages.nodemon
+    pkgs.jdk21
+    pkgs.android-tools 
+    pkgs.gradle
   ];
-  # Sets environment variables in the workspace
-  env = {};
+
+  # Set environment variables visible to your entire workspace
+  env = {
+    JAVA_HOME = "${pkgs.jdk21}/lib/openjdk";
+    # The SDK is located here in this environment
+    ANDROID_HOME = "/home/user/.androidsdkroot";
+    ANDROID_SDK_ROOT = lib.mkForce "/home/user/.androidsdkroot";
+  };
+
+  # Add VS Code extensions
   idx = {
-    # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
-      # "vscodevim.vim"
-      "google.gemini-cli-vscode-ide-companion"
+      "vscjava.vscode-java-pack"
+      "fwcd.kotlin"
+      "vscjava.vscode-gradle"
     ];
-    # Enable previews
+    
     previews = {
       enable = true;
       previews = {
-        # web = {
-        #   # Example: run "npm run dev" with PORT set to IDX's defined port for previews,
-        #   # and show it in IDX's web preview panel
-        #   command = ["npm" "run" "dev"];
-        #   manager = "web";
-        #   env = {
-        #     # Environment variables to set for your server
-        #     PORT = "$PORT";
-        #   };
-        # };
-      };
-    };
-    # Workspace lifecycle hooks
-    workspace = {
-      # Runs when a workspace is first created
-      onCreate = {
-        # Example: install JS dependencies from NPM
-        # npm-install = "npm install";
-        # Open editors for the following files by default, if they exist:
-        default.openFiles = [ ".idx/dev.nix" "README.md" ];
-      };
-      # Runs when the workspace is (re)started
-      onStart = {
-        # Example: start a background task to watch and re-build backend code
-        # watch-backend = "npm run watch-backend";
+        android = {
+          # Correct command and working directory
+          command = ["./gradlew" "installDebug" "--no-daemon" "--parallel"];
+          manager = "android";
+          cwd = "android-native";
+        };
       };
     };
   };

@@ -1,0 +1,21 @@
+# Gradle
+.gradle/
+build/
+android-native/.gradle/
+android-native/app/build/
+android-native/.kotlin/
+
+# IDE
+.idx/
+.vscode/
+.idea/
+*.iml
+
+# Android
+android-native/local.properties
+android-native/app/google-services.json
+android-native/app/release.keystore
+
+# OS
+.DS_Store
+*.swp
