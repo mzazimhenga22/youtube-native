@@ -7,12 +7,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -32,70 +30,81 @@ fun ShortsCard(
     onFocus: (Video) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
+    var isFocused by remember { mutableStateOf(false) }
 
     Surface(
         onClick = onClick,
-        interactionSource = interactionSource,
         modifier = modifier
-            .width(280.dp)
-            .aspectRatio(9/16f)
-            .onFocusChanged { if (it.isFocused) onFocus(video) },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(40.dp)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(androidx.compose.foundation.BorderStroke(4.dp, Color.White)))
+            .width(180.dp)
+            .aspectRatio(9f / 16f)
+            .onFocusChanged {
+                isFocused = it.isFocused
+                if (it.isFocused) onFocus(video)
+            },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color.White)
+            )
+        ),
+        glow = ClickableSurfaceDefaults.glow(
+            focusedGlow = Glow(
+                elevationColor = Color.White.copy(alpha = 0.12f),
+                elevation = 12.dp
+            )
+        )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Image
+            // Thumbnail
             AsyncImage(
                 model = video.thumbnail,
-                contentDescription = null,
+                contentDescription = video.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
 
-            // Bottom Gradient
+            // Bottom gradient
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
-                            startY = 400f
+                            colors = listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.8f)),
+                            startY = 200f
                         )
                     )
             )
 
-            // Content Overlay
+            // Content overlay
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(24.dp)
+                    .padding(12.dp)
             ) {
                 Text(
                     text = video.title,
                     color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    lineHeight = 22.sp,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 16.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${video.views} loops",
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            // Focus Indicator: Play Button
+            // Focus play indicator
             if (isFocused) {
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(40.dp)
                         .align(Alignment.Center)
                         .background(Color.White.copy(alpha = 0.9f), CircleShape),
                     contentAlignment = Alignment.Center
@@ -104,11 +113,10 @@ fun ShortsCard(
                         Icons.Default.PlayArrow,
                         contentDescription = null,
                         tint = Color.Black,
-                        modifier = Modifier.size(32.dp).padding(start = 4.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
         }
     }
 }
-

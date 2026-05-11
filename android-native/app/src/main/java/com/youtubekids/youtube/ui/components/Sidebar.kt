@@ -3,7 +3,6 @@ package com.youtubekids.youtube.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -62,9 +61,15 @@ fun Sidebar(
 
     var isFocused by remember { mutableStateOf(false) }
     val width by animateDpAsState(
-        targetValue = if (isFocused) 240.dp else 80.dp,
+        targetValue = if (isFocused) 220.dp else 64.dp,
         animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
         label = "sidebarWidth"
+    )
+
+    val bgAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 0.92f else 0.55f,
+        animationSpec = tween(250),
+        label = "bgAlpha"
     )
 
     Box(
@@ -72,98 +77,127 @@ fun Sidebar(
             .fillMaxHeight()
             .width(width)
             .onFocusChanged { isFocused = it.hasFocus }
-            .padding(vertical = 40.dp)
-            .padding(horizontal = 10.dp)
+            .padding(vertical = 80.dp, horizontal = 8.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    color = Color.Transparent,
-                    shape = RoundedCornerShape(32.dp)
-                ),
+                    color = Color(0xFF0D0D0D).copy(alpha = bgAlpha),
+                    shape = RoundedCornerShape(28.dp)
+                )
+                .padding(vertical = 16.dp, horizontal = 8.dp),
             horizontalAlignment = if (isFocused) Alignment.Start else Alignment.CenterHorizontally
         ) {
-            // Profile Avatar (Left only)
+            // Profile Avatar (Left sidebar only)
             if (side == "left") {
-                Surface(
-                    onClick = { onNavigate("settings") },
+                Box(
                     modifier = Modifier
-                        .size(56.dp)
-                        .padding(bottom = 24.dp),
-                    shape = ClickableSurfaceDefaults.shape(CircleShape),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
-                    colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF181818))
+                        .padding(bottom = 8.dp)
+                        .then(if (isFocused) Modifier.padding(start = 12.dp) else Modifier),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if (currentProfile?.avatar != null) {
-                        AsyncImage(
-                            model = currentProfile.avatar,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                    Surface(
+                        onClick = { onNavigate("settings") },
+                        modifier = Modifier.size(44.dp),
+                        shape = ClickableSurfaceDefaults.shape(CircleShape),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color(0xFF2A2A2A),
+                            focusedContainerColor = Color(0xFF3A3A3A)
+                        ),
+                        border = ClickableSurfaceDefaults.border(
+                            focusedBorder = Border(
+                                androidx.compose.foundation.BorderStroke(2.dp, Color.White)
+                            )
                         )
-                    } else {
-                        Icon(Icons.Default.Person, contentDescription = null, tint = Color.White)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            if (currentProfile?.avatar != null) {
+                                AsyncImage(
+                                    model = currentProfile.avatar,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
                     }
                 }
-                
+
                 // Divider
-                Box(modifier = Modifier
-                    .height(2.dp)
-                    .width(if (isFocused) 40.dp else 24.dp)
-                    .background(Color.White.copy(alpha = 0.1f))
-                    .padding(vertical = 16.dp)
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .then(if (isFocused) Modifier.padding(horizontal = 16.dp) else Modifier.padding(horizontal = 12.dp))
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Color.White.copy(alpha = 0.08f))
                 )
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Navigation Items
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items.forEach { item ->
                     val isSelected = selectedRoute == item.route || (item.route == "home" && selectedRoute == "")
-                    
+
                     Surface(
                         onClick = { onNavigate(item.route) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
                         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                         colors = ClickableSurfaceDefaults.colors(
-                            containerColor = if (isSelected) Color.White.copy(alpha = 0.15f) else Color(0xFF181818),
+                            containerColor = if (isSelected) Color.White.copy(alpha = 0.12f) else Color.Transparent,
                             focusedContainerColor = Color.White
                         )
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = if (isFocused) 20.dp else 0.dp, vertical = 14.dp),
-                            horizontalArrangement = if (isFocused) (if (side == "right") Arrangement.End else Arrangement.Start) else Arrangement.Center
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = if (isFocused) 16.dp else 0.dp),
+                            horizontalArrangement = if (isFocused) {
+                                if (side == "right") Arrangement.End else Arrangement.Start
+                            } else Arrangement.Center
                         ) {
                             if (side == "right" && isFocused) {
                                 Text(
                                     text = item.title,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = if (isSelected) Color.White else Color.Black,
-                                    modifier = Modifier.padding(end = 16.dp),
-                                    fontWeight = FontWeight.Black
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.Black,
+                                    modifier = Modifier.padding(end = 12.dp),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
 
                             Icon(
                                 item.icon,
                                 contentDescription = item.title,
-                                modifier = Modifier.size(26.dp),
-                                tint = if (isSelected) Color.White else (if (isFocused) Color.Black else Color.White.copy(alpha = 0.6f))
+                                modifier = Modifier.size(22.dp),
+                                tint = if (isSelected && !isFocused) Color.White
+                                       else if (isFocused) Color.Black
+                                       else Color.White.copy(alpha = 0.5f)
                             )
 
                             if (side == "left" && isFocused) {
                                 Text(
                                     text = item.title,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = if (isSelected) Color.White else Color.Black,
-                                    modifier = Modifier.padding(start = 16.dp),
-                                    fontWeight = FontWeight.Black
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.Black,
+                                    modifier = Modifier.padding(start = 12.dp),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
                         }

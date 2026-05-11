@@ -4,6 +4,7 @@ package com.youtubekids.youtube.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
@@ -40,27 +42,30 @@ fun MiniPlayer(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .width(600.dp)
-                .height(90.dp)
-                .shadow(20.dp, RoundedCornerShape(24.dp))
-                .clip(RoundedCornerShape(24.dp))
+                .width(480.dp)
+                .height(64.dp)
+                .shadow(12.dp, RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color(0xFF1C1C1E).copy(alpha = 0.95f), Color(0xFF121212).copy(alpha = 0.98f))
+                        colors = listOf(
+                            Color(0xFF1C1C1E).copy(alpha = 0.95f),
+                            Color(0xFF121212).copy(alpha = 0.98f)
+                        )
                     )
                 )
-                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
         ) {
             Column {
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Thumbnail
@@ -68,67 +73,64 @@ fun MiniPlayer(
                         model = video.thumbnail,
                         contentDescription = null,
                         modifier = Modifier
-                            .size(60.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
                             .background(Color(0xFF333333)),
                         contentScale = ContentScale.Crop
                     )
 
-                    Spacer(modifier = Modifier.width(20.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     // Info
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             video.title,
                             color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
-                            letterSpacing = (-0.5).sp
+                            overflow = TextOverflow.Ellipsis,
+                            letterSpacing = (-0.3).sp
                         )
                         Text(
                             video.channel,
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.4f),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
                             maxLines = 1
                         )
                     }
 
-                    // Controls
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(onClick = onTogglePlay) {
-                            Icon(
-                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                tint = Color.White
-                            )
-                        }
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                        IconButton(onClick = onOpenFull) {
-                            Icon(Icons.Default.OpenInFull, contentDescription = null, tint = Color.White)
-                        }
+                    // Controls
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        MiniBtn(
+                            icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            onClick = onTogglePlay
+                        )
+                        MiniBtn(icon = Icons.Default.OpenInFull, onClick = onOpenFull)
 
                         Box(
                             modifier = Modifier
                                 .width(1.dp)
-                                .height(30.dp)
-                                .background(Color.White.copy(alpha = 0.1f))
-                                .padding(horizontal = 8.dp)
+                                .height(20.dp)
+                                .background(Color.White.copy(alpha = 0.06f))
                         )
 
-                        IconButton(onClick = onClose) {
-                            Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
-                        }
+                        MiniBtn(icon = Icons.Default.Close, onClick = onClose, subtle = true)
                     }
                 }
 
-                // Progress Bar
+                // Progress bar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(4.dp)
-                        .background(Color.White.copy(alpha = 0.05f))
+                        .height(3.dp)
+                        .background(Color.White.copy(alpha = 0.04f))
                 ) {
                     Box(
                         modifier = Modifier
@@ -138,6 +140,33 @@ fun MiniPlayer(
                     )
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun MiniBtn(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    subtle: Boolean = false
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(32.dp),
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.White.copy(alpha = 0.15f)
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (subtle) Color.White.copy(alpha = 0.4f) else Color.White,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

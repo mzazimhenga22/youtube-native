@@ -34,39 +34,54 @@ fun MusicCard(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    Column(
+    Surface(
+        onClick = onClick,
         modifier = Modifier
             .width(width.dp)
-            .onFocusChanged { 
-                isFocused = it.isFocused 
+            .onFocusChanged {
+                isFocused = it.isFocused
                 if (it.isFocused) onFocus()
-            }
-            .padding(8.dp)
-    ) {
-        Surface(
-            onClick = onClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(if (isSquare) 1f else 16/9f),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(32.dp)),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
-            colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color.DarkGray,
-                focusedContainerColor = Color.White
+            },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.06f),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color(0xFF1A1A1A),
+            focusedContainerColor = Color(0xFF1A1A1A)
+        ),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color.White),
+                shape = RoundedCornerShape(16.dp)
             )
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+        ),
+        glow = ClickableSurfaceDefaults.glow(
+            focusedGlow = Glow(
+                elevationColor = Color.White.copy(alpha = 0.12f),
+                elevation = 10.dp
+            )
+        )
+    ) {
+        Column {
+            // Thumbnail
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(if (isSquare) 1f else 16f / 9f)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            ) {
                 AsyncImage(
                     model = video.thumbnail,
-                    contentDescription = null,
+                    contentDescription = video.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
 
-                // Background Gradient
+                // Bottom gradient
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .align(Alignment.BottomCenter)
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f))
@@ -74,76 +89,60 @@ fun MusicCard(
                         )
                 )
 
-                // Red Aura Focus Overlay
-                if (isFocused) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(Color.Red.copy(alpha = 0.3f), Color.Transparent),
-                                    radius = 1000f
-                                )
-                            )
-                    )
-                }
-
+                // Play button for square (album) cards
                 if (isSquare) {
-                    // Central Play Button for Albums
                     Box(
                         modifier = Modifier
-                            .size(60.dp)
-                            .clip(CircleShape)
-                            .background(if (isFocused) Color.White else Color.White.copy(alpha = 0.2f))
-                            .align(Alignment.Center),
+                            .size(40.dp)
+                            .align(Alignment.Center)
+                            .background(
+                                if (isFocused) Color.White else Color.White.copy(alpha = 0.15f),
+                                CircleShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.PlayArrow,
                             contentDescription = null,
                             tint = if (isFocused) Color.Black else Color.White,
-                            modifier = Modifier.size(24.dp).padding(start = 4.dp)
-                        )
-                    }
-                } else if (isFocused) {
-                    // "MUSIC VIDEO" Badge
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(16.dp)
-                            .background(Color.Red, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            "MUSIC VIDEO",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
-            }
-        }
 
-        // Content Details
-        Column(modifier = Modifier.padding(top = 16.dp, start = 8.dp)) {
-            Text(
-                text = video.title,
-                color = if (isFocused) Color.White else Color.Gray,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = video.channel,
-                color = Color.Gray,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+                // Badge for non-square
+                if (!isSquare && isFocused) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .background(Color.Red, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("MUSIC VIDEO", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                    }
+                }
+            }
+
+            // Info
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(
+                    text = video.title,
+                    color = if (isFocused) Color.White else Color.White.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = video.channel,
+                    color = Color.White.copy(alpha = 0.35f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
-

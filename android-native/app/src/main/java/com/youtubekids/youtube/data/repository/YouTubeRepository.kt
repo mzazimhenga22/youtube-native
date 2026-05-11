@@ -1,5 +1,6 @@
 package com.youtubekids.youtube.data.repository
 
+import android.util.Log
 import com.youtubekids.youtube.data.model.Chapter
 import com.youtubekids.youtube.data.model.Video
 import com.youtubekids.youtube.data.remote.YouTubeApi
@@ -39,16 +40,21 @@ class YouTubeRepository @Inject constructor(
         if (cachedApiKey != null && cachedClientVersion != null) return@withLock
 
         try {
+            Log.d(TAG, "Initializing InnerTube credentials...")
             val response = api.getRequest(baseUrl, headers)
             if (response.isSuccessful) {
-                val html = response.body() ?: ""
+                val html = response.body()?.string() ?: ""
                 
-                cachedApiKey = Regex("\"INNERTUBE_API_KEY\":\"(.+?)\"").find(html)?.groupValues?.get(1)
-                cachedClientVersion = Regex("\"clientVersion\":\"([\\d\\.]+)\"").find(html)?.groupValues?.get(1) ?: "2.20240101.01.00"
-                cachedVisitorData = Regex("\"visitorData\":\"(.+?)\"").find(html)?.groupValues?.get(1)
+                cachedApiKey = Regex(""""INNERTUBE_API_KEY":"(.+?)""""").find(html)?.groupValues?.get(1)
+                cachedClientVersion = Regex(""""clientVersion":"([\d.]+)""""").find(html)?.groupValues?.get(1) ?: "2.20240101.01.00"
+                cachedVisitorData = Regex(""""visitorData":"(.+?)""""").find(html)?.groupValues?.get(1)
+                
+                Log.d(TAG, "API Key: ${cachedApiKey?.take(8)}..., Version: $cachedClientVersion, Visitor: ${cachedVisitorData?.take(8)}...")
+            } else {
+                Log.e(TAG, "ensureCredentials HTTP error: ${response.code()}")
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "ensureCredentials failed", e)
         }
     }
 
@@ -116,7 +122,10 @@ class YouTubeRepository @Inject constructor(
 
     private suspend fun browse(browseId: String): List<Video> = withContext(Dispatchers.IO) {
         ensureCredentials()
-        val apiKey = cachedApiKey ?: ""
+        val apiKey = cachedApiKey ?: run {
+            Log.e(TAG, "browse($browseId): No API key available")
+            return@withContext emptyList()
+        }
         val apiUrl = "$baseUrl/youtubei/v1/browse?key=$apiKey"
 
         val body = buildJsonObject {
@@ -124,27 +133,34 @@ class YouTubeRepository @Inject constructor(
                 putJsonObject("client") {
                     put("clientName", "WEB")
                     put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
-                    put("visitorData", cachedVisitorData)
+                    cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
             put("browseId", browseId)
         }
 
         try {
-            val response = api.postRequest(apiUrl, headers, body)
+            val response = api.postRequest(apiUrl, headers + ("Content-Type" to "application/json"), body)
             if (response.isSuccessful) {
                 val data = response.body() ?: return@withContext emptyList()
-                return@withContext extractVideosDeep(data)
+                val videos = extractVideosDeep(data)
+                Log.d(TAG, "browse($browseId): Got ${videos.size} videos")
+                return@withContext videos
+            } else {
+                Log.e(TAG, "browse($browseId) HTTP ${response.code()}")
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "browse($browseId) failed", e)
         }
         emptyList()
     }
 
     suspend fun search(query: String): List<Video> = withContext(Dispatchers.IO) {
         ensureCredentials()
-        val apiKey = cachedApiKey ?: ""
+        val apiKey = cachedApiKey ?: run {
+            Log.e(TAG, "search($query): No API key available")
+            return@withContext emptyList()
+        }
         val apiUrl = "$baseUrl/youtubei/v1/search?key=$apiKey"
 
         val body = buildJsonObject {
@@ -152,26 +168,31 @@ class YouTubeRepository @Inject constructor(
                 putJsonObject("client") {
                     put("clientName", "WEB")
                     put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
+                    cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
             put("query", query)
         }
 
         try {
-            val response = api.postRequest(apiUrl, headers, body)
+            val response = api.postRequest(apiUrl, headers + ("Content-Type" to "application/json"), body)
             if (response.isSuccessful) {
                 val data = response.body() ?: return@withContext emptyList()
-                return@withContext extractVideosDeep(data)
+                val videos = extractVideosDeep(data)
+                Log.d(TAG, "search($query): Got ${videos.size} videos")
+                return@withContext videos
+            } else {
+                Log.e(TAG, "search($query) HTTP ${response.code()}")
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "search($query) failed", e)
         }
         emptyList()
     }
 
     suspend fun getVideoDetails(videoId: String): Video? = withContext(Dispatchers.IO) {
         ensureCredentials()
-        val apiKey = cachedApiKey ?: ""
+        val apiKey = cachedApiKey ?: return@withContext null
         val apiUrl = "$baseUrl/youtubei/v1/player?key=$apiKey"
 
         val body = buildJsonObject {
@@ -179,13 +200,14 @@ class YouTubeRepository @Inject constructor(
                 putJsonObject("client") {
                     put("clientName", "WEB")
                     put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
+                    cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
             put("videoId", videoId)
         }
 
         try {
-            val response = api.postRequest(apiUrl, headers, body)
+            val response = api.postRequest(apiUrl, headers + ("Content-Type" to "application/json"), body)
             if (response.isSuccessful) {
                 val data = response.body() ?: return@withContext null
                 val details = data["videoDetails"]?.jsonObject
@@ -213,14 +235,14 @@ class YouTubeRepository @Inject constructor(
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "getVideoDetails($videoId) failed", e)
         }
         null
     }
 
     suspend fun getUpNext(videoId: String): List<Video> = withContext(Dispatchers.IO) {
         ensureCredentials()
-        val apiKey = cachedApiKey ?: ""
+        val apiKey = cachedApiKey ?: return@withContext emptyList()
         val apiUrl = "$baseUrl/youtubei/v1/next?key=$apiKey"
 
         val body = buildJsonObject {
@@ -228,13 +250,14 @@ class YouTubeRepository @Inject constructor(
                 putJsonObject("client") {
                     put("clientName", "WEB")
                     put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
+                    cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
             put("videoId", videoId)
         }
 
         try {
-            val response = api.postRequest(apiUrl, headers, body)
+            val response = api.postRequest(apiUrl, headers + ("Content-Type" to "application/json"), body)
             if (response.isSuccessful) {
                 val data = response.body() ?: return@withContext emptyList()
                 val results = data["contents"]?.jsonObject?.get("twoColumnWatchNextResults")?.jsonObject
@@ -532,13 +555,14 @@ class YouTubeRepository @Inject constructor(
                 putJsonObject("client") {
                     put("clientName", "WEB")
                     put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
+                    cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
             put("videoId", videoId)
         }
 
         try {
-            val response = api.postRequest(apiUrl, headers, body)
+            val response = api.postRequest(apiUrl, headers + ("Content-Type" to "application/json"), body)
             if (response.isSuccessful) {
                 val data = response.body() ?: return@withContext fallbackComments(videoId)
                 val threads = mutableListOf<Comment>()
@@ -719,7 +743,7 @@ class YouTubeRepository @Inject constructor(
                         put("clientVersion", client.version)
                         put("hl", "en-US")
                         put("gl", "US")
-                        put("visitorData", cachedVisitorData)
+                        cachedVisitorData?.let { put("visitorData", it) }
                     }
                 }
                 put("videoId", videoId)
@@ -733,7 +757,7 @@ class YouTubeRepository @Inject constructor(
             }
 
             try {
-                val headersWithUserAgent = headers.toMutableMap().apply {
+                val headersWithUserAgent = (headers + ("Content-Type" to "application/json")).toMutableMap().apply {
                     put("User-Agent", client.userAgent)
                 }
                 val response = api.postRequest(apiUrl, headersWithUserAgent, body)
@@ -800,4 +824,8 @@ class YouTubeRepository @Inject constructor(
         val topicAffinity: Map<String, Double>,
         val seenIds: Set<String>
     )
+
+    companion object {
+        private const val TAG = "YouTubeRepository"
+    }
 }

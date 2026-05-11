@@ -43,8 +43,8 @@ fun HeroBanner(
     val heroVideos = videos.take(5)
     var activeIndex by remember { mutableIntStateOf(0) }
     val currentVideo = heroVideos[activeIndex]
-    
-    // Auto-rotate logic
+
+    // Auto-rotate
     LaunchedEffect(heroVideos) {
         while (heroVideos.size > 1) {
             delay(8000)
@@ -55,12 +55,12 @@ fun HeroBanner(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(720.dp)
-            .padding(horizontal = 48.dp, vertical = 24.dp)
-            .clip(RoundedCornerShape(40.dp))
-            .background(Color.Black)
+            .height(500.dp)
+            .padding(horizontal = 72.dp, vertical = 12.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(Color(0xFF0A0A0A))
     ) {
-        // Background Image with Crossfade
+        // ── Background Image ──
         Crossfade(
             targetState = currentVideo.thumbnail,
             animationSpec = tween(1000),
@@ -74,24 +74,24 @@ fun HeroBanner(
             )
         }
 
-        // 1. Left Gradient for text legibility
+        // ── Left gradient for text ──
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.horizontalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.85f),
-                            Color.Black.copy(alpha = 0.4f),
+                            Color.Black.copy(alpha = 0.9f),
+                            Color.Black.copy(alpha = 0.5f),
                             Color.Transparent
                         ),
                         startX = 0f,
-                        endX = 1400f
+                        endX = 1200f
                     )
                 )
         )
 
-        // 2. Bottom Fade
+        // ── Bottom vignette ──
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -99,87 +99,93 @@ fun HeroBanner(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color(0xFF0A0A0A).copy(alpha = 0.3f),
-                            Color(0xFF0A0A0A).copy(alpha = 0.9f),
-                            Color(0xFF0A0A0A)
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.6f),
+                            Color.Black.copy(alpha = 0.95f)
                         ),
-                        startY = 0f
+                        startY = 200f
                     )
                 )
         )
 
-        // Content
+        // ── Content ──
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(start = 80.dp),
-            verticalArrangement = Arrangement.Center
+                .padding(start = 56.dp, bottom = 40.dp),
+            verticalArrangement = Arrangement.Bottom
         ) {
             AnimatedContent(
                 targetState = currentVideo,
                 transitionSpec = {
-                    fadeIn(tween(800)) + slideInVertically(tween(800)) { it / 2 } togetherWith
-                    fadeOut(tween(400))
+                    fadeIn(tween(600)) + slideInVertically(tween(600)) { it / 3 } togetherWith
+                    fadeOut(tween(300))
                 },
                 label = "heroContent"
             ) { video ->
                 Column {
-                    // Trending Badge
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Badge row
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .background(Color.Red, RoundedCornerShape(12.dp))
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .background(Color.Red, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 5.dp)
                         ) {
                             Text(
                                 text = if (activeIndex == 0) "FEATURED" else "#${activeIndex + 1} TRENDING",
                                 color = Color.White,
-                                fontSize = 14.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Black,
-                                letterSpacing = 2.sp
+                                letterSpacing = 1.5.sp
                             )
                         }
                         if (video.views.isNotEmpty()) {
                             Text(
-                                text = "${video.views} views",
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
+                                text = video.views,
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Title
                     Text(
                         text = video.title,
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Black,
-                            lineHeight = 78.sp,
-                            letterSpacing = (-3).sp
-                        ),
                         color = Color.White,
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Black,
+                        lineHeight = 42.sp,
+                        letterSpacing = (-1.5).sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(800.dp)
+                        modifier = Modifier.widthIn(max = 600.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // Channel
                     Text(
                         text = video.channel,
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 40.dp)
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
 
-            // Action Buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ── Action Buttons ──
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 HeroButton(
                     label = "Play Now",
                     icon = Icons.Default.PlayArrow,
@@ -192,48 +198,51 @@ fun HeroBanner(
                     primary = false,
                     onClick = {}
                 )
+                // Add to list button
                 Surface(
                     onClick = {},
-                    modifier = Modifier.size(64.dp),
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                    modifier = Modifier.size(48.dp),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
                     colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.White.copy(alpha = 0.1f),
-                        focusedContainerColor = Color.White.copy(alpha = 0.25f)
+                        containerColor = Color.White.copy(alpha = 0.08f),
+                        focusedContainerColor = Color.White.copy(alpha = 0.2f)
                     ),
-                    border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+                    border = ClickableSurfaceDefaults.border(
+                        focusedBorder = Border(BorderStroke(1.5.dp, Color.White.copy(alpha = 0.5f)))
+                    )
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(22.dp))
                     }
                 }
             }
         }
 
-        // Bottom Navigation (Dots + Arrows)
+        // ── Pagination (Bottom Right) ──
         Row(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 60.dp, end = 80.dp),
+                .padding(bottom = 40.dp, end = 56.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(32.dp)
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Dots
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 repeat(heroVideos.size) { i ->
                     val isActive = activeIndex == i
-                    val width by animateDpAsState(if (isActive) 32.dp else 10.dp, label = "dotWidth")
+                    val w by animateDpAsState(if (isActive) 24.dp else 8.dp, label = "dot")
                     Box(
                         modifier = Modifier
-                            .size(width = width, height = 10.dp)
+                            .size(width = w, height = 8.dp)
                             .clip(CircleShape)
-                            .background(if (isActive) Color.Red else Color.White.copy(alpha = 0.3f))
+                            .background(if (isActive) Color.Red else Color.White.copy(alpha = 0.25f))
                     )
                 }
             }
 
             // Arrows
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ArrowButton(icon = Icons.Default.ChevronLeft) {
                     activeIndex = (activeIndex - 1 + heroVideos.size) % heroVideos.size
                 }
@@ -255,17 +264,21 @@ private fun HeroButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.height(64.dp),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+        modifier = Modifier.height(48.dp),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (primary) Color.White else Color.White.copy(alpha = 0.1f),
-            focusedContainerColor = if (primary) Color.Red else Color.White.copy(alpha = 0.25f)
+            containerColor = if (primary) Color.White else Color.White.copy(alpha = 0.08f),
+            focusedContainerColor = if (primary) Color.Red else Color.White.copy(alpha = 0.2f)
         ),
-        border = if (!primary) ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White))) else ClickableSurfaceDefaults.border()
+        border = if (!primary) ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(1.5.dp, Color.White.copy(alpha = 0.5f)))
+        ) else ClickableSurfaceDefaults.border()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 32.dp),
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -273,14 +286,14 @@ private fun HeroButton(
                 icon,
                 contentDescription = null,
                 tint = if (primary) Color.Black else Color.White,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(22.dp)
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = label,
                 color = if (primary) Color.Black else Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }
@@ -294,16 +307,16 @@ private fun ArrowButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(60.dp),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+        modifier = Modifier.size(40.dp),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.1f),
-            focusedContainerColor = Color.White.copy(alpha = 0.25f)
+            containerColor = Color.White.copy(alpha = 0.08f),
+            focusedContainerColor = Color.White.copy(alpha = 0.2f)
         )
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
         }
     }
 }

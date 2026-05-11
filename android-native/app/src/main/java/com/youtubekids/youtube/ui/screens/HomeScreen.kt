@@ -64,7 +64,7 @@ fun HomeScreen(
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 100.dp)
+            contentPadding = PaddingValues(top = 72.dp, bottom = 120.dp)
         ) {
             item {
                 val heroVideos = when (selectedCategory) {

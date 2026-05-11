@@ -44,39 +44,52 @@ fun CategoryChips(
     modifier: Modifier = Modifier
 ) {
     LazyRow(
-        modifier = modifier.padding(vertical = 24.dp),
-        contentPadding = PaddingValues(horizontal = 48.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = modifier.padding(vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 80.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(CATEGORIES) { category ->
             val isSelected = selectedCategory == category.label
-            
+
             Surface(
                 onClick = { onCategorySelected(category.label) },
-                modifier = Modifier.wrapContentSize(),
-                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(32.dp)),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                modifier = Modifier.height(40.dp),
+                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
                 colors = ClickableSurfaceDefaults.colors(
-                    containerColor = if (isSelected) Color.White else Color.White.copy(alpha = 0.05f),
+                    containerColor = if (isSelected) Color.White else Color.White.copy(alpha = 0.06f),
                     focusedContainerColor = Color.White
+                ),
+                border = ClickableSurfaceDefaults.border(
+                    border = Border(
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isSelected) Color.Transparent else Color.White.copy(alpha = 0.08f)
+                        )
+                    ),
+                    focusedBorder = Border(
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color.White)
+                    )
                 )
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
                         category.icon,
                         contentDescription = null,
-                        tint = if (isSelected) Color.Black else category.color,
-                        modifier = Modifier.size(24.dp)
+                        tint = if (isSelected) category.color else category.color.copy(alpha = 0.8f),
+                        modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = category.label,
-                        color = if (isSelected) Color.Black else Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black
+                        color = if (isSelected) Color.Black else Color.White.copy(alpha = 0.9f),
+                        fontSize = 14.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
                 }
             }

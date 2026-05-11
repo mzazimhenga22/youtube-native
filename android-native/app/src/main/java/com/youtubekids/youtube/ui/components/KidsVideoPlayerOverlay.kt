@@ -27,6 +27,13 @@ import androidx.tv.material3.*
 import coil.compose.AsyncImage
 import com.youtubekids.youtube.data.model.Video
 
+// Kids-friendly color palette
+private val KidsRed = Color(0xFFFF4B4B)
+private val KidsGreen = Color(0xFF4BFF7B)
+private val KidsGold = Color(0xFFFFD700)
+private val KidsBlue = Color(0xFF4BA3FF)
+private val KidsDark = Color(0xFF2D3436)
+
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun KidsVideoPlayerOverlay(
@@ -38,119 +45,121 @@ fun KidsVideoPlayerOverlay(
     onTogglePlay: () -> Unit,
     onSelectVideo: (Video) -> Unit
 ) {
+    val safeProgress = progress.coerceIn(0f, 1f)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.4f))
+            .background(Color.Black.copy(alpha = 0.35f))
     ) {
-        // Top Bar: Giant Close Button
+        // ── Close Button (Top-Right) ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(40.dp),
+                .padding(24.dp),
             contentAlignment = Alignment.TopEnd
         ) {
             Surface(
                 onClick = onClose,
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.size(56.dp),
                 shape = ClickableSurfaceDefaults.shape(CircleShape),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = Color.White.copy(alpha = 0.9f),
                     focusedContainerColor = Color.White
                 ),
                 border = ClickableSurfaceDefaults.border(
-                    focusedBorder = Border(BorderStroke(4.dp, Color(0xFFFFD700)))
+                    focusedBorder = Border(BorderStroke(3.dp, KidsGold))
                 )
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = Color(0xFF2D3436),
-                        modifier = Modifier.size(48.dp)
+                        tint = KidsDark,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
         }
 
-        // Bottom Section: Integrated Controls & Shelf
+        // ── Bottom Section ──
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 40.dp)
+                .padding(bottom = 32.dp)
         ) {
-            // Playful Video Shelf
+            // Up Next shelf
             if (upNext.isNotEmpty()) {
                 Text(
                     text = "UP NEXT",
                     color = Color.White,
-                    fontSize = 20.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(start = 60.dp, bottom = 16.dp),
-                    letterSpacing = 4.sp
+                    letterSpacing = 3.sp,
+                    modifier = Modifier.padding(start = 48.dp, bottom = 12.dp)
                 )
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 60.dp),
-                    horizontalArrangement = Arrangement.spacedBy(32.dp),
-                    modifier = Modifier.padding(bottom = 48.dp)
+                    contentPadding = PaddingValues(horizontal = 48.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(bottom = 24.dp)
                 ) {
-                    itemsIndexed(upNext) { index, video ->
+                    itemsIndexed(upNext) { _, video ->
                         KidsUpNextCard(video = video, onClick = { onSelectVideo(video) })
                     }
                 }
             }
 
-            // Control Bar
+            // ── Control Bar ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 60.dp),
+                    .padding(horizontal = 48.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Giant Play/Pause Button
+                // Play/Pause button
                 Surface(
                     onClick = onTogglePlay,
-                    modifier = Modifier.size(96.dp),
+                    modifier = Modifier.size(64.dp),
                     shape = ClickableSurfaceDefaults.shape(CircleShape),
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
-                    colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFFFF4B4B)),
+                    colors = ClickableSurfaceDefaults.colors(containerColor = KidsRed),
                     border = ClickableSurfaceDefaults.border(
-                        border = Border(BorderStroke(4.dp, Color.White)),
-                        focusedBorder = Border(BorderStroke(4.dp, Color(0xFFFFD700)))
+                        border = Border(BorderStroke(3.dp, Color.White)),
+                        focusedBorder = Border(BorderStroke(3.dp, KidsGold))
                     )
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = "Toggle Play",
                             tint = Color.White,
-                            modifier = Modifier.size(56.dp)
+                            modifier = Modifier.size(32.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(40.dp))
+                Spacer(modifier = Modifier.width(24.dp))
 
-                // Scrubber & Title
+                // Scrubber + Title
                 Column(modifier = Modifier.weight(1f)) {
-                    // Bright Scrubber
+                    // Progress bar (chunky for kids)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(16.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.3f))
+                            .height(12.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.White.copy(alpha = 0.2f))
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
-                                .fillMaxWidth(progress)
-                                .background(Color(0xFF4BFF7B), RoundedCornerShape(8.dp))
+                                .fillMaxWidth(safeProgress)
+                                .background(KidsGreen, RoundedCornerShape(6.dp))
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -160,25 +169,28 @@ fun KidsVideoPlayerOverlay(
                         Text(
                             text = title.uppercase(),
                             color = Color.White,
-                            fontSize = 32.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp,
+                            letterSpacing = 0.5.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
                         Box(
                             modifier = Modifier
-                                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-                                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .background(KidsBlue.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                .border(1.dp, KidsBlue.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 5.dp)
                         ) {
                             Text(
                                 text = "KIDS MODE",
                                 color = Color.White.copy(alpha = 0.8f),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Black
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.sp
                             )
                         }
                     }
@@ -193,22 +205,22 @@ fun KidsVideoPlayerOverlay(
 private fun KidsUpNextCard(video: Video, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.width(256.dp),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(40.dp)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+        modifier = Modifier.width(200.dp),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color(0xFF2D3436),
-            focusedContainerColor = Color(0xFF2D3436)
+            containerColor = KidsDark,
+            focusedContainerColor = KidsDark
         ),
         border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(BorderStroke(6.dp, Color(0xFFFFD700)))
+            focusedBorder = Border(BorderStroke(3.dp, KidsGold))
         )
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Column(modifier = Modifier.padding(8.dp)) {
             Box(
                 modifier = Modifier
-                    .aspectRatio(16/9f)
-                    .clip(RoundedCornerShape(32.dp))
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(14.dp))
                     .background(Color.Black.copy(alpha = 0.2f))
             ) {
                 AsyncImage(
@@ -217,31 +229,34 @@ private fun KidsUpNextCard(video: Video, onClick: () -> Unit) {
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp)
-                        .background(Color(0xFFFF4B4B), RoundedCornerShape(100.dp))
-                        .border(2.dp, Color.White, RoundedCornerShape(100.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = video.duration,
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Black
-                    )
+
+                // Duration badge
+                if (video.duration.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(6.dp)
+                            .background(KidsRed, RoundedCornerShape(8.dp))
+                            .border(1.5.dp, Color.White, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = video.duration,
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
                 }
             }
             Text(
                 text = video.title,
                 color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Black,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 12.dp, start = 8.dp, end = 8.dp, bottom = 4.dp)
+                modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp, bottom = 2.dp)
             )
         }
     }

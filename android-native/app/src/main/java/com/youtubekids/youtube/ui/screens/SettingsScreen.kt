@@ -1,9 +1,6 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
 package com.youtubekids.youtube.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +16,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -85,39 +81,46 @@ fun SettingsScreen(
         )
     )
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F0F0F))) {
-        // Ambient Decorative Shape
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A0A))) {
+        // Ambient blob
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .offset(x = 200.dp, y = 200.dp)
-                .size(600.dp)
-                .alpha(0.05f)
+                .size(400.dp)
+                .alpha(0.03f)
                 .background(Color.White, CircleShape)
-                .blur(100.dp)
+                .blur(80.dp)
         )
 
-        Row(modifier = Modifier.fillMaxSize()) {
-            // Left Column: Navigation
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 72.dp) // Clear floating header
+        ) {
+            // ── Left: Category Nav ──
             Column(
                 modifier = Modifier
-                    .width(480.dp)
+                    .width(340.dp)
                     .fillMaxHeight()
-                    .padding(top = 80.dp, start = 48.dp, end = 24.dp)
+                    .padding(start = 80.dp, end = 16.dp, top = 20.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 64.dp, start = 24.dp)) {
-                    Icon(Icons.Default.Settings, contentDescription = null, tint = Color(0xFF71717A), modifier = Modifier.size(24.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 24.dp, start = 12.dp)
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "SETTINGS",
-                        color = Color(0xFF71717A),
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 4.sp,
-                        modifier = Modifier.padding(start = 16.dp)
+                        color = Color.White.copy(alpha = 0.3f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 3.sp
                     )
                 }
 
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     items(categories) { cat ->
                         CategoryItem(
                             category = cat,
@@ -129,40 +132,40 @@ fun SettingsScreen(
                 }
             }
 
-            // Right Column: Details
+            // ── Right: Details ──
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .padding(top = 80.dp, end = 80.dp, start = 48.dp)
+                    .padding(start = 24.dp, end = 80.dp, top = 20.dp)
             ) {
                 val currentCat = categories.find { it.id == activeCategory }
-                
-                // Section Header
-                Column(modifier = Modifier.padding(bottom = 64.dp)) {
+
+                // Section header
+                Column(modifier = Modifier.padding(bottom = 24.dp)) {
                     Text(
                         text = currentCat?.label ?: "",
                         color = Color.White,
-                        fontSize = 64.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-2).sp
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp
                     )
                     Text(
                         text = currentCat?.description ?: "",
-                        color = Color(0xFF71717A),
-                        fontSize = 24.sp,
+                        color = Color.White.copy(alpha = 0.3f),
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
 
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     val content = settingsContent[activeCategory] ?: emptyList()
                     if (content.isNotEmpty()) {
                         items(content) { item ->
                             DetailedSettingItem(item = item, onClick = {
                                 if (item.action == "switch" || item.action == "add") {
-                                    onLogout() // For now, go back to profile picker
+                                    onLogout()
                                 }
                             })
                         }
@@ -171,19 +174,19 @@ fun SettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(300.dp)
-                                    .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(40.dp))
-                                    .padding(48.dp),
+                                    .height(160.dp)
+                                    .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(16.dp))
+                                    .padding(24.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.Build, contentDescription = null, tint = Color(0xFF272727), modifier = Modifier.size(64.dp))
+                                    Icon(Icons.Default.Build, contentDescription = null, tint = Color.White.copy(alpha = 0.1f), modifier = Modifier.size(28.dp))
+                                    Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        "Advanced features in development",
-                                        color = Color(0xFF3F3F46),
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Black,
-                                        modifier = Modifier.padding(top = 24.dp)
+                                        "Coming soon",
+                                        color = Color.White.copy(alpha = 0.2f),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
                             }
@@ -204,44 +207,59 @@ private fun CategoryItem(
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    
+
     Surface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .onFocusChanged { 
+            .height(48.dp)
+            .onFocusChanged {
                 isFocused = it.isFocused
                 if (isFocused) onFocus()
             },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
-            focusedContainerColor = if (category.isAction) Color.Red.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.1f)
+            focusedContainerColor = if (category.isAction) Color.Red.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.08f)
         ),
         border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(androidx.compose.foundation.BorderStroke(2.dp, if (category.isAction) Color.Red.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.2f)))
+            focusedBorder = Border(
+                androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (category.isAction) Color.Red.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f)
+                )
+            )
         )
     ) {
         Row(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 category.icon,
                 contentDescription = null,
-                tint = if (isActive || isFocused) (if (category.isAction) Color.Red else Color.White) else Color(0xFF71717A),
-                modifier = Modifier.size(32.dp)
+                tint = when {
+                    category.isAction && (isActive || isFocused) -> Color.Red
+                    isActive || isFocused -> Color.White
+                    else -> Color.White.copy(alpha = 0.25f)
+                },
+                modifier = Modifier.size(18.dp)
             )
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = category.label,
-                color = if (isActive || isFocused) (if (category.isAction) Color.Red else Color.White) else Color(0xFF71717A),
-                fontSize = 28.sp,
-                fontWeight = if (isActive) FontWeight.Black else FontWeight.Bold,
-                modifier = Modifier.padding(start = 24.dp).weight(1f)
+                color = when {
+                    category.isAction && (isActive || isFocused) -> Color.Red
+                    isActive || isFocused -> Color.White
+                    else -> Color.White.copy(alpha = 0.4f)
+                },
+                fontSize = 14.sp,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                modifier = Modifier.weight(1f)
             )
-            if (isActive) {
-                Box(modifier = Modifier.size(8.dp).background(Color.White, CircleShape))
+            if (isActive && !category.isAction) {
+                Box(modifier = Modifier.size(5.dp).background(Color.White, CircleShape))
             }
         }
     }
@@ -251,30 +269,29 @@ private fun CategoryItem(
 @Composable
 private fun DetailedSettingItem(item: SettingItem, onClick: () -> Unit) {
     var isFocused by remember { mutableStateOf(false) }
-    
+
     Surface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .onFocusChanged { isFocused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(32.dp)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.05f),
+            containerColor = Color.White.copy(alpha = 0.04f),
             focusedContainerColor = Color.White
         )
     ) {
         Row(
-            modifier = Modifier.padding(32.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (item.isProfile) {
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.1f))
-                        .padding(2.dp)
                 ) {
                     AsyncImage(
                         model = item.avatar ?: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
@@ -283,30 +300,30 @@ private fun DetailedSettingItem(item: SettingItem, onClick: () -> Unit) {
                         contentScale = ContentScale.Crop
                     )
                 }
-                Spacer(modifier = Modifier.width(24.dp))
+                Spacer(modifier = Modifier.width(12.dp))
             }
-            
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.label,
                     color = if (isFocused) Color.Black else Color.White,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Black
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = item.value,
-                    color = if (isFocused) Color.Black.copy(alpha = 0.6f) else Color(0xFF71717A),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp)
+                    color = if (isFocused) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.3f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
-            
+
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = if (isFocused) Color.Black else Color(0xFF3F3F46),
-                modifier = Modifier.size(32.dp)
+                tint = if (isFocused) Color.Black.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.15f),
+                modifier = Modifier.size(18.dp)
             )
         }
     }

@@ -15,9 +15,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -51,7 +49,7 @@ fun SearchScreen(
         listOf("Y", "Z", "1", "2", "3", "4"),
         listOf("5", "6", "7", "8", "9", "0"),
         listOf("&", "@", ".", "-", "_", "/"),
-        listOf("SPACE", "BACK", "CLEAR")
+        listOf("SPACE", "⌫", "CLR")
     )
 
     val quickChips = listOf("Music", "Gaming", "News", "Movies", "Shorts", "Live")
@@ -61,7 +59,7 @@ fun SearchScreen(
         searchJob = scope.launch {
             if (q.trim().isNotEmpty()) {
                 isLoading = true
-                delay(800)
+                delay(500)
                 results = repository.search(q)
                 isLoading = false
             }
@@ -72,107 +70,138 @@ fun SearchScreen(
         results = repository.getHomeVideos()
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F0F0F))) {
-        // 1. Ambient Background Gradients
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A0A))) {
         SearchAmbientGlow()
 
-        Row(modifier = Modifier.fillMaxSize()) {
-            // LEFT PANEL: KEYBOARD
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 72.dp) // Clear floating header
+        ) {
+            // ═══════════════════════════════════
+            // LEFT: Keyboard Panel
+            // ═══════════════════════════════════
             Column(
                 modifier = Modifier
-                    .width(520.dp)
+                    .width(400.dp)
                     .fillMaxHeight()
-                    .padding(horizontal = 32.dp, vertical = 40.dp)
+                    .padding(start = 80.dp, end = 16.dp, top = 20.dp, bottom = 24.dp)
             ) {
-                // Query Bar
+                // ── Query Bar ──
                 Surface(
-                    onClick = { /* Implement selection focus */ },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(72.dp),
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(22.dp)),
+                    onClick = {},
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
                     colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.White.copy(alpha = 0.04f),
+                        containerColor = Color.White.copy(alpha = 0.05f),
                         focusedContainerColor = Color.White.copy(alpha = 0.08f)
                     ),
-                    border = ClickableSurfaceDefaults.border(focusedBorder = Border(androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))))
+                    border = ClickableSurfaceDefaults.border(
+                        focusedBorder = Border(
+                            androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                        )
+                    )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 22.dp),
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = if (query.isEmpty()) Color(0xFF3F3F46) else Color.White, modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.width(14.dp))
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = if (query.isEmpty()) Color.White.copy(alpha = 0.2f) else Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = if (query.isEmpty()) "Search YouTube..." else query,
-                            color = if (query.isEmpty()) Color(0xFF3F3F46) else Color.White,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Black,
+                            color = if (query.isEmpty()) Color.White.copy(alpha = 0.25f) else Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
                             modifier = Modifier.weight(1f)
                         )
                         if (query.isNotEmpty()) {
                             Surface(
                                 onClick = { query = ""; results = emptyList() },
-                                modifier = Modifier.size(40.dp),
+                                modifier = Modifier.size(32.dp),
                                 shape = ClickableSurfaceDefaults.shape(CircleShape),
-                                colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.White.copy(alpha = 0.1f))
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                    focusedContainerColor = Color.White.copy(alpha = 0.1f)
+                                )
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
                                 }
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Surface(
                                 onClick = { performSearch(query) },
-                                modifier = Modifier.size(44.dp),
+                                modifier = Modifier.size(36.dp),
                                 shape = ClickableSurfaceDefaults.shape(CircleShape),
-                                colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.08f), focusedContainerColor = Color.Red)
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = Color.Red.copy(alpha = 0.8f),
+                                    focusedContainerColor = Color.Red
+                                )
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Custom Keyboard Grid
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                // ── Keyboard Grid ──
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     keyboardKeys.forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             row.forEach { key ->
-                                val isControl = listOf("SPACE", "BACK", "CLEAR").contains(key)
+                                val isControl = key == "SPACE" || key == "⌫" || key == "CLR"
                                 var isKeyFocused by remember { mutableStateOf(false) }
+
                                 Surface(
                                     onClick = {
                                         when (key) {
-                                            "BACK" -> if (query.isNotEmpty()) query = query.dropLast(1)
+                                            "⌫" -> if (query.isNotEmpty()) query = query.dropLast(1)
                                             "SPACE" -> query += " "
-                                            "CLEAR" -> query = ""
+                                            "CLR" -> query = ""
                                             else -> query += key
                                         }
                                         performSearch(query)
                                     },
-                                    modifier = (if (isControl) Modifier.weight(1f).height(56.dp) else Modifier.width(64.dp).height(56.dp)).onFocusChanged { isKeyFocused = it.isFocused },
-                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+                                    modifier = (if (isControl)
+                                        Modifier.weight(1f).height(44.dp)
+                                    else
+                                        Modifier.weight(1f).height(44.dp)
+                                    ).onFocusChanged { isKeyFocused = it.isFocused },
+                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
                                     colors = ClickableSurfaceDefaults.colors(
                                         containerColor = Color.White.copy(alpha = 0.04f),
-                                        focusedContainerColor = Color(0xFFCC0000)
+                                        focusedContainerColor = Color.Red
                                     ),
-                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f)
+                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f)
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        if (key == "BACK") {
-                                            Icon(Icons.Default.Backspace, contentDescription = null, tint = if (isKeyFocused) Color.White else Color(0xFF71717A), modifier = Modifier.size(22.dp))
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        if (key == "⌫") {
+                                            Icon(
+                                                Icons.Default.Backspace,
+                                                contentDescription = null,
+                                                tint = if (isKeyFocused) Color.White else Color.White.copy(alpha = 0.4f),
+                                                modifier = Modifier.size(18.dp)
+                                            )
                                         } else {
                                             Text(
                                                 text = key,
-                                                color = if (isKeyFocused) Color.White else Color(0xFF71717A),
-                                                fontSize = if (isControl) 13.sp else 22.sp,
-                                                fontWeight = FontWeight.Black,
-                                                letterSpacing = if (isControl) 1.5.sp else (-0.5).sp
+                                                color = if (isKeyFocused) Color.White else Color.White.copy(alpha = 0.4f),
+                                                fontSize = if (isControl) 11.sp else 16.sp,
+                                                fontWeight = if (isKeyFocused) FontWeight.Bold else FontWeight.Medium,
+                                                letterSpacing = if (isControl) 1.sp else 0.sp
                                             )
                                         }
                                     }
@@ -182,39 +211,67 @@ fun SearchScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Quick Chips
-                Column {
-                    Text(
-                        "QUICK SEARCH",
-                        color = Color(0xFF3F3F46),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 2.sp,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        quickChips.take(4).forEach { chip ->
-                            var isChipFocused by remember { mutableStateOf(false) }
-                            Surface(
-                                onClick = { query = chip; performSearch(query) },
-                                modifier = Modifier.wrapContentSize().onFocusChanged { isChipFocused = it.isFocused },
-                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
-                                colors = ClickableSurfaceDefaults.colors(
-                                    containerColor = Color.White.copy(alpha = 0.05f),
-                                    focusedContainerColor = Color.White
-                                )
-                            ) {
+                // ── Quick Chips ──
+                Text(
+                    "QUICK SEARCH",
+                    color = Color.White.copy(alpha = 0.2f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    quickChips.take(4).forEach { chip ->
+                        var isChipFocused by remember { mutableStateOf(false) }
+                        Surface(
+                            onClick = { query = chip; performSearch(query) },
+                            modifier = Modifier.weight(1f).height(36.dp).onFocusChanged { isChipFocused = it.isFocused },
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = Color.White.copy(alpha = 0.04f),
+                                focusedContainerColor = Color.White
+                            )
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(
                                     text = chip,
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                                    color = if (isChipFocused) Color.Black else Color(0xFF71717A),
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 14.sp
+                                    color = if (isChipFocused) Color.Black else Color.White.copy(alpha = 0.4f),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    quickChips.drop(4).forEach { chip ->
+                        var isChipFocused by remember { mutableStateOf(false) }
+                        Surface(
+                            onClick = { query = chip; performSearch(query) },
+                            modifier = Modifier.weight(1f).height(36.dp).onFocusChanged { isChipFocused = it.isFocused },
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = Color.White.copy(alpha = 0.04f),
+                                focusedContainerColor = Color.White
+                            )
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = chip,
+                                    color = if (isChipFocused) Color.Black else Color.White.copy(alpha = 0.4f),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
                                 )
                             }
                         }
@@ -222,42 +279,53 @@ fun SearchScreen(
                 }
             }
 
-            // Divider
-            Box(modifier = Modifier.width(1.dp).fillMaxHeight().padding(vertical = 60.dp).background(Color.White.copy(alpha = 0.04f)))
+            // ── Divider ──
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .padding(vertical = 40.dp)
+                    .background(Color.White.copy(alpha = 0.04f))
+            )
 
-            // RIGHT PANEL: RESULTS
+            // ═══════════════════════════════════
+            // RIGHT: Results Panel
+            // ═══════════════════════════════════
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .padding(horizontal = 32.dp, vertical = 40.dp)
+                    .padding(start = 24.dp, end = 80.dp, top = 20.dp, bottom = 24.dp)
             ) {
-                // Results Header
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-                    Box(modifier = Modifier.weight(1f).height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+                // Results header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                ) {
+                    Box(modifier = Modifier.weight(1f).height(1.dp).background(Color.White.copy(alpha = 0.04f)))
                     Text(
-                        text = if (query.isEmpty()) "TRENDING" else "RESULTS FOR \"$query\"",
-                        color = Color(0xFF52525B),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 3.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        text = if (query.isEmpty()) "TRENDING" else "\"${query.uppercase()}\"",
+                        color = Color.White.copy(alpha = 0.25f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp)
                     )
-                    Box(modifier = Modifier.weight(1f).height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+                    Box(modifier = Modifier.weight(1f).height(1.dp).background(Color.White.copy(alpha = 0.04f)))
                 }
 
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        com.youtubekids.youtube.ui.components.SingularityLoader()
+                        com.youtubekids.youtube.ui.components.SingularityLoader(minimal = true)
                     }
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(24.dp),
-                        contentPadding = PaddingValues(bottom = 100.dp)
+                        columns = GridCells.Adaptive(minSize = 260.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(bottom = 120.dp)
                     ) {
-                        items(results) { video ->
+                        items(results, key = { it.id }) { video ->
                             VideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }
@@ -275,25 +343,23 @@ fun SearchAmbientGlow() {
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
-                .size(500.dp)
+                .size(400.dp)
                 .align(Alignment.TopStart)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color.Red.copy(alpha = 0.05f), Color.Transparent)
+                        colors = listOf(Color.Red.copy(alpha = 0.03f), Color.Transparent)
                     )
                 )
         )
         Box(
             modifier = Modifier
-                .size(600.dp)
+                .size(500.dp)
                 .align(Alignment.BottomEnd)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(Color.White.copy(alpha = 0.02f), Color.Transparent)
+                        colors = listOf(Color.White.copy(alpha = 0.01f), Color.Transparent)
                     )
                 )
         )
     }
 }
-
-

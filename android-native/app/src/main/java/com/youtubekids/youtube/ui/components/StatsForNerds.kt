@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
 import com.youtubekids.youtube.data.model.Video
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun StatsForNerds(
     video: Video,
@@ -25,18 +26,28 @@ fun StatsForNerds(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(48.dp),
+            .padding(24.dp),
         contentAlignment = Alignment.TopStart
     ) {
         Surface(
             onClick = onClose,
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
-            colors = ClickableSurfaceDefaults.colors(containerColor = Color.Black.copy(alpha = 0.85f), focusedContainerColor = Color.Black)
+            modifier = Modifier.width(360.dp),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.Black.copy(alpha = 0.9f),
+                focusedContainerColor = Color.Black.copy(alpha = 0.95f)
+            ),
+            border = ClickableSurfaceDefaults.border(
+                border = Border(
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+                )
+            )
         ) {
             Column(
-                modifier = Modifier.padding(32.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -45,23 +56,31 @@ fun StatsForNerds(
                     Text(
                         text = "Stats for Nerds",
                         color = Color.Red,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.4f),
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Color.White.copy(alpha = 0.06f))
+                )
 
                 StatRow("Video ID", video.id)
-                StatRow("Resolution", "3840x2160@60 (4K HDR)")
-                StatRow("Codec", "vp09.02.51.10.01.01.01.01.00 (248) / opus (251)")
+                StatRow("Resolution", "3840×2160@60")
+                StatRow("Codec", "vp09 / opus")
                 StatRow("Bitrate", "24.5 Mbps")
-                StatRow("Buffer Health", "124.5s")
-                StatRow("Network Activity", "5.2 MB/s")
-                StatRow("Connection Speed", "85.4 Mbps")
-                StatRow("Dropped Frames", "0 / 14500")
-                StatRow("Audio Language", "en-US (Primary)")
+                StatRow("Buffer", "124.5s")
+                StatRow("Network", "5.2 MB/s")
+                StatRow("Dropped", "0 / 14500")
             }
         }
     }
@@ -70,20 +89,20 @@ fun StatsForNerds(
 @Composable
 private fun StatRow(label: String, value: String) {
     Row(
-        modifier = Modifier.width(400.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             text = label,
-            color = Color.Gray,
-            fontSize = 16.sp,
+            color = Color.White.copy(alpha = 0.3f),
+            fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
         )
         Text(
             text = value,
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace
         )
     }

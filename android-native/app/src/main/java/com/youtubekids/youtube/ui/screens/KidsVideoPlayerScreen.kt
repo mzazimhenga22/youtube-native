@@ -146,14 +146,27 @@ fun KidsVideoPlayerScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(error!!, color = Color.White, fontSize = 48.sp, fontWeight = FontWeight.Black)
-                    Spacer(modifier = Modifier.height(32.dp))
+                    // Sad face
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(Color.White.copy(alpha = 0.1f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("😢", fontSize = 28.sp)
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(error!!, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(20.dp))
                     Surface(
                         onClick = onClose,
-                        shape = ClickableSurfaceDefaults.shape(CircleShape),
-                        colors = ClickableSurfaceDefaults.colors(containerColor = Color.White)
+                        modifier = Modifier.height(44.dp),
+                        shape = ClickableSurfaceDefaults.shape(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
+                        colors = ClickableSurfaceDefaults.colors(containerColor = Color.White, focusedContainerColor = Color(0xFFF72585))
                     ) {
-                        Text("GO BACK", modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp), color = Color.Black, fontWeight = FontWeight.Bold)
+                        Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+                            Text("Go Back", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

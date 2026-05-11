@@ -17,11 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -365,41 +367,60 @@ fun VideoPlayerScreen(
 fun UpNextCard(video: Video?, countdown: Int, onCancel: () -> Unit, onPlayNow: () -> Unit) {
     Surface(
         onClick = onPlayNow,
-        modifier = Modifier.width(380.dp),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
-        colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF0A0A0A).copy(alpha = 0.85f)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f)
+        modifier = Modifier.width(320.dp),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color(0xFF0A0A0A).copy(alpha = 0.92f)
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+        border = ClickableSurfaceDefaults.border(
+            border = Border(
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+            )
+        )
     ) {
         Column {
             Row(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Up Next", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Black)
+                    Text("Up Next", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Box(modifier = Modifier.background(Color.Red, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 2.dp)) {
-                        Text("${countdown}s", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Black)
+                    Box(
+                        modifier = Modifier
+                            .background(Color.Red, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("${countdown}s", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 androidx.tv.material3.IconButton(onClick = onCancel) {
-                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Close, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                 }
             }
-            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+
+            Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
                 AsyncImage(
                     model = video?.thumbnail,
                     contentDescription = null,
-                    modifier = Modifier.size(140.dp, 80.dp).clip(RoundedCornerShape(16.dp)),
+                    modifier = Modifier
+                        .size(120.dp, 68.dp)
+                        .clip(RoundedCornerShape(10.dp)),
                     contentScale = ContentScale.Crop
                 )
-                Column(modifier = Modifier.padding(start = 16.dp)) {
-                    Text(video?.title ?: "", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Black, maxLines = 2)
-                    Text(video?.channel ?: "", color = Color.Gray, fontSize = 13.sp)
+                Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+                    Text(video?.title ?: "", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(video?.channel ?: "", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp)
                 }
             }
-            Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(Color.White.copy(alpha = 0.1f))) {
+
+            // Countdown bar
+            Box(modifier = Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(alpha = 0.08f))) {
                 Box(modifier = Modifier.fillMaxWidth(1f - (countdown / 10f)).fillMaxHeight().background(Color.Red))
             }
         }
@@ -408,22 +429,52 @@ fun UpNextCard(video: Video?, countdown: Int, onCancel: () -> Unit, onPlayNow: (
 
 @Composable
 fun ResumePrompt(timeText: String, onResume: () -> Unit, onStartOver: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
+        contentAlignment = Alignment.Center
+    ) {
         Surface(
             onClick = {},
-            modifier = Modifier.width(520.dp),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(32.dp)),
+            modifier = Modifier.width(420.dp),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
             colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF18181B))
         ) {
-            Column(modifier = Modifier.padding(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Continue watching?", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black)
-                Text("You stopped at $timeText. Resume?", color = Color.Gray, fontSize = 18.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Surface(onClick = onResume, shape = ClickableSurfaceDefaults.shape(CircleShape), colors = ClickableSurfaceDefaults.colors(containerColor = Color.White)) {
-                        Text("Resume", modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp), color = Color.Black, fontWeight = FontWeight.Black)
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Continue watching?", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "You stopped at $timeText",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(
+                        onClick = onResume,
+                        modifier = Modifier.height(44.dp),
+                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                        colors = ClickableSurfaceDefaults.colors(containerColor = Color.White, focusedContainerColor = Color.Red)
+                    ) {
+                        Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+                            Text("Resume", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
                     }
-                    Surface(onClick = onStartOver, shape = ClickableSurfaceDefaults.shape(CircleShape), colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)) {
-                        Text("Start Over", modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp), color = Color.White, fontWeight = FontWeight.Black)
+                    Surface(
+                        onClick = onStartOver,
+                        modifier = Modifier.height(44.dp),
+                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color.White.copy(alpha = 0.1f),
+                            focusedContainerColor = Color.White
+                        )
+                    ) {
+                        Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+                            Text("Start Over", color = LocalContentColor.current, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
                     }
                 }
             }
@@ -445,50 +496,65 @@ private fun ErrorState(
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.72f))
-        )
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)))
+
         Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(32.dp),
+            modifier = Modifier.align(Alignment.Center).padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Error icon
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color.White.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(28.dp))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = "Video unavailable",
                 color = Color.White,
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Black,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = error,
-                color = Color.White.copy(alpha = 0.72f),
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(max = 620.dp)
+                modifier = Modifier.widthIn(max = 400.dp)
             )
-            Spacer(modifier = Modifier.height(32.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Button(
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(
                     onClick = onRetry,
-                    colors = ButtonDefaults.colors(containerColor = Color.White),
-                    shape = ButtonDefaults.shape(shape = RoundedCornerShape(8.dp)),
-                    contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp)
+                    modifier = Modifier.height(44.dp),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                    colors = ClickableSurfaceDefaults.colors(containerColor = Color.White, focusedContainerColor = Color.Red)
                 ) {
-                    Text("Try Again", color = Color.Black, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                    Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+                        Text("Try Again", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
-                Button(
+                Surface(
                     onClick = onBack,
-                    colors = ButtonDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f)),
-                    shape = ButtonDefaults.shape(shape = RoundedCornerShape(8.dp)),
-                    contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp)
+                    modifier = Modifier.height(44.dp),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.White.copy(alpha = 0.1f),
+                        focusedContainerColor = Color.White
+                    )
                 ) {
-                    Text("Go Back", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+                    Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+                        Text("Go Back", color = LocalContentColor.current, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -498,7 +564,10 @@ private fun ErrorState(
 private fun formatTime(ms: Long): String {
     if (ms < 0) return "0:00"
     val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
+    return if (hours > 0) "%d:%02d:%02d".format(hours, minutes, seconds)
+    else "%d:%02d".format(minutes, seconds)
 }
+

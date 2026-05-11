@@ -48,16 +48,15 @@ fun VideoPlayerOverlay(
     var showStats by remember { mutableStateOf(false) }
     var interactionKey by remember { mutableIntStateOf(0) }
 
-    // Clamp progress to valid range for fillMaxWidth
     val safeProgress = progress.coerceIn(0f, 1f)
 
-    // Show controls when play state changes
+    // Show controls on play state change
     LaunchedEffect(isPlaying) {
         isVisible = true
         interactionKey++
     }
 
-    // Auto-hide logic - restarts whenever interactionKey changes
+    // Auto-hide
     LaunchedEffect(isVisible, isPlaying, interactionKey) {
         if (isVisible && isPlaying) {
             kotlinx.coroutines.delay(5000)
@@ -66,8 +65,7 @@ fun VideoPlayerOverlay(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // When controls are hidden, show an invisible focusable Surface
-        // Any remote button press (D-pad or Select) re-shows the overlay
+        // Tap-to-show when hidden
         if (!isVisible) {
             Surface(
                 onClick = {
@@ -81,7 +79,7 @@ fun VideoPlayerOverlay(
                             isVisible = true
                             interactionKey++
                         }
-                        false // Don't consume — let default handling proceed
+                        false
                     },
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = Color.Transparent,
@@ -97,100 +95,245 @@ fun VideoPlayerOverlay(
             exit = fadeOut()
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Background Gradient
+                // ── Top gradient ──
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .align(Alignment.TopCenter)
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f)),
-                                startY = 500f
+                                colors = listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)
                             )
                         )
                 )
 
-                // Close Button
-                Surface(
-                    onClick = onClose,
-                    modifier = Modifier.padding(24.dp).size(48.dp).align(Alignment.TopStart),
-                    shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.White.copy(alpha = 0.1f),
-                        focusedContainerColor = Color.White,
-                        contentColor = Color.White,
-                        focusedContentColor = Color.Black
-                    )
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = LocalContentColor.current)
-                    }
-                }
-
-                // Video Info & Controls
-                Column(
+                // ── Bottom gradient ──
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 48.dp, bottom = 48.dp, end = 48.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = video.title,
-                            color = Color.White,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Black,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                        .fillMaxWidth()
+                        .height(280.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                            )
                         )
-                        if (currentChapter != null) {
-                            Text(
-                                text = "Chapter: $currentChapter",
-                                color = Color.White.copy(alpha = 0.6f),
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(top = 4.dp)
+                )
+
+                // ── Top Bar: Close + Title ──
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Close button
+                    Surface(
+                        onClick = onClose,
+                        modifier = Modifier.size(40.dp),
+                        shape = ClickableSurfaceDefaults.shape(CircleShape),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color.White.copy(alpha = 0.1f),
+                            focusedContainerColor = Color.White
+                        )
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = LocalContentColor.current,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
-                    // Progress Bar
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(currentTime, color = Color.White.copy(alpha = 0.6f))
+                    // Title in top bar
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = video.title,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (video.channel.isNotEmpty()) {
+                            Text(
+                                text = video.channel,
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // Settings gear
+                    Surface(
+                        onClick = { onToggleStats(); interactionKey++ },
+                        modifier = Modifier.size(40.dp),
+                        shape = ClickableSurfaceDefaults.shape(CircleShape),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color.White.copy(alpha = 0.1f),
+                            focusedContainerColor = Color.White
+                        )
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Settings, contentDescription = null, tint = LocalContentColor.current, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+
+                // ── Center Play/Pause ──
+                Row(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalArrangement = Arrangement.spacedBy(32.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Rewind 10s
+                    Surface(
+                        onClick = { onSeek(-10f); interactionKey++ },
+                        modifier = Modifier.size(48.dp),
+                        shape = ClickableSurfaceDefaults.shape(CircleShape),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color.White.copy(alpha = 0.1f),
+                            focusedContainerColor = Color.White.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Replay10, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                        }
+                    }
+
+                    // Play/Pause button
+                    Surface(
+                        onClick = { onTogglePlay(); interactionKey++ },
+                        modifier = Modifier.size(64.dp),
+                        shape = ClickableSurfaceDefaults.shape(CircleShape),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color.White,
+                            focusedContainerColor = Color.White
+                        )
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(
+                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+
+                    // Forward 10s
+                    Surface(
+                        onClick = { onSeek(10f); interactionKey++ },
+                        modifier = Modifier.size(48.dp),
+                        shape = ClickableSurfaceDefaults.shape(CircleShape),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color.White.copy(alpha = 0.1f),
+                            focusedContainerColor = Color.White.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Forward10, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
+
+                // ── Bottom Controls ──
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 24.dp)
+                ) {
+                    // Chapter indicator
+                    if (currentChapter != null) {
+                        Text(
+                            text = "▸ $currentChapter",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(bottom = 8.dp, start = 2.dp)
+                        )
+                    }
+
+                    // ── Progress Bar ──
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            currentTime,
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        // Track
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(4.dp)
-                                .padding(horizontal = 16.dp)
-                                .background(Color.White.copy(alpha = 0.2f))
+                                .height(6.dp)
+                                .padding(horizontal = 12.dp)
+                                .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(3.dp))
                         ) {
+                            // Progress fill
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(safeProgress)
                                     .fillMaxHeight()
-                                    .background(Color.Red)
+                                    .background(Color.Red, RoundedCornerShape(3.dp))
                             )
+                            // Scrub dot
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .offset(x = (safeProgress * 100).dp.coerceAtMost(500.dp))
+                            ) {
+                                // Dot will be approximated by the bar end
+                            }
                         }
-                        Text(duration, color = Color.White.copy(alpha = 0.6f))
+
+                        Text(
+                            duration,
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Buttons
+                    // ── Action Buttons Row ──
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            IconButton(icon = Icons.Default.ThumbUp, onClick = { interactionKey++ })
-                            IconButton(icon = Icons.Default.Comment, onClick = { onToggleComments(); interactionKey++ })
-                            IconButton(icon = Icons.Default.MusicNote, onClick = { onToggleLyrics(); interactionKey++ })
-                            
-                            // Speed Toggle
+                        // Left: social actions
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OverlayButton(icon = Icons.Default.ThumbUp, label = "Like") { interactionKey++ }
+                            OverlayButton(icon = Icons.Default.ThumbDown, label = "Dislike") { interactionKey++ }
+                            OverlayButton(icon = Icons.Default.Comment, label = "Comments") {
+                                onToggleComments(); interactionKey++
+                            }
+                            OverlayButton(icon = Icons.Default.MusicNote, label = "Lyrics") {
+                                onToggleLyrics(); interactionKey++
+                            }
+
+                            // Speed toggle
                             Surface(
-                                onClick = { 
-                                    val nextSpeed = when(currentSpeed) {
+                                onClick = {
+                                    val nextSpeed = when (currentSpeed) {
                                         1.0f -> 1.25f
                                         1.25f -> 1.5f
                                         1.5f -> 2.0f
@@ -199,43 +342,29 @@ fun VideoPlayerOverlay(
                                     onSetSpeed(nextSpeed)
                                     interactionKey++
                                 },
-                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
-                                colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
-                            ) {
-                                Text(
-                                    text = "${currentSpeed}x",
-                                    color = if (androidx.tv.material3.LocalContentColor.current == Color.Black) Color.Black else Color.White,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                    fontWeight = FontWeight.Black
+                                modifier = Modifier.height(36.dp),
+                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = Color.White.copy(alpha = 0.1f),
+                                    focusedContainerColor = Color.White
                                 )
-                            }
-
-                            IconButton(icon = Icons.Default.Info, onClick = { onToggleStats(); interactionKey++ })
-                        }
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(icon = Icons.Default.Replay10, onClick = { onSeek(-10f); interactionKey++ })
-                            
-                            Surface(
-                                onClick = { onTogglePlay(); interactionKey++ },
-                                modifier = Modifier.size(80.dp),
-                                shape = ClickableSurfaceDefaults.shape(shape = CircleShape),
-                                colors = ClickableSurfaceDefaults.colors(containerColor = Color.White)
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = null,
-                                        tint = Color.Black,
-                                        modifier = Modifier.size(40.dp)
+                                Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "${currentSpeed}x",
+                                        color = LocalContentColor.current,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
-
-                            IconButton(icon = Icons.Default.Forward10, onClick = { onSeek(10f); interactionKey++ })
                         }
 
-                        IconButton(icon = Icons.Default.Settings, onClick = { interactionKey++ })
+                        // Right: fullscreen / PiP
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OverlayButton(icon = Icons.Default.PictureInPicture, label = "PiP") { interactionKey++ }
+                            OverlayButton(icon = Icons.Default.Fullscreen, label = "Fullscreen") { interactionKey++ }
+                        }
                     }
                 }
             }
@@ -243,6 +372,34 @@ fun VideoPlayerOverlay(
 
         if (showStats) {
             StatsForNerds(video = video, onClose = { showStats = false })
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun OverlayButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(36.dp),
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.White.copy(alpha = 0.1f),
+            focusedContainerColor = Color.White
+        )
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = LocalContentColor.current,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

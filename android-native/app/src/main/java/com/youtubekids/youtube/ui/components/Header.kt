@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -31,53 +32,65 @@ fun FloatingHeader(
     onSearchClick: () -> Unit,
     onProfileClick: () -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
-        // Left Pod: Branding
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 80.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // ─── Left Pod: Branding ───
         Surface(
             onClick = {},
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .height(60.dp),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(30.dp)),
+            modifier = Modifier.height(52.dp),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(26.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color(0xFF121212).copy(alpha = 0.5f)
+                containerColor = Color(0xFF0D0D0D).copy(alpha = 0.7f),
+                focusedContainerColor = Color(0xFF0D0D0D).copy(alpha = 0.85f)
             ),
             border = ClickableSurfaceDefaults.border(
-                border = Border(androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)))
+                border = Border(
+                    androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Color.White.copy(alpha = 0.06f)
+                    )
+                )
             )
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 20.dp),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Logo Triangle Box
+                // Logo play icon
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .background(Color.Red, RoundedCornerShape(10.dp)),
+                        .size(30.dp)
+                        .background(Color.Red, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    androidx.compose.foundation.Canvas(modifier = Modifier.size(12.dp)) {
+                    androidx.compose.foundation.Canvas(modifier = Modifier.size(11.dp)) {
                         val path = androidx.compose.ui.graphics.Path().apply {
-                            moveTo(0f, 0f)
+                            moveTo(size.width * 0.15f, 0f)
                             lineTo(size.width, size.height / 2)
-                            lineTo(0f, size.height)
+                            lineTo(size.width * 0.15f, size.height)
                             close()
                         }
                         drawPath(path, Color.White)
                     }
                 }
-                
+
                 Text(
                     text = "YouTube",
                     color = Color.White,
                     fontWeight = FontWeight.Black,
-                    fontSize = 22.sp,
-                    letterSpacing = (-1).sp
+                    fontSize = 20.sp,
+                    letterSpacing = (-0.8).sp
                 )
 
-                // Theme Badge
+                // Section badge
                 val theme = when {
                     currentRoute?.contains("music") == true -> "Music" to Color(0xFFFF0055)
                     currentRoute?.contains("movies") == true -> "Movies" to Color(0xFFFF4444)
@@ -89,63 +102,83 @@ fun FloatingHeader(
                 theme?.let { (label, color) ->
                     Box(
                         modifier = Modifier
-                            .background(color.copy(alpha = 0.1f), RoundedCornerShape(14.dp))
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .background(color.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = label.uppercase(),
                             color = color,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 0.6.sp
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.8.sp
                         )
                     }
                 }
             }
         }
 
-        // Right Pod: Actions
+        // ─── Right Pod: Action Buttons ───
         Surface(
             onClick = {},
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .height(60.dp),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(30.dp)),
+            modifier = Modifier.height(52.dp),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(26.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color(0xFF121212).copy(alpha = 0.5f)
+                containerColor = Color(0xFF0D0D0D).copy(alpha = 0.7f),
+                focusedContainerColor = Color(0xFF0D0D0D).copy(alpha = 0.85f)
             ),
             border = ClickableSurfaceDefaults.border(
-                border = Border(androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)))
+                border = Border(
+                    androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        Color.White.copy(alpha = 0.06f)
+                    )
+                )
             )
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 10.dp),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 HeaderButton(icon = Icons.Default.Search, onClick = onSearchClick)
                 HeaderButton(icon = Icons.Default.Mic, onClick = {})
-                
-                // Avatar Button
+                HeaderButton(icon = Icons.Default.Notifications, onClick = {})
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Profile avatar
                 Surface(
                     onClick = onProfileClick,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape),
+                    modifier = Modifier.size(36.dp),
                     shape = ClickableSurfaceDefaults.shape(CircleShape),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
-                    border = ClickableSurfaceDefaults.border(focusedBorder = Border(androidx.compose.foundation.BorderStroke(2.dp, Color.White)))
-                ) {
-                    if (currentProfile?.avatar != null) {
-                        AsyncImage(
-                            model = currentProfile.avatar,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color(0xFF2A2A2A),
+                        focusedContainerColor = Color(0xFF3A3A3A)
+                    ),
+                    border = ClickableSurfaceDefaults.border(
+                        focusedBorder = Border(
+                            androidx.compose.foundation.BorderStroke(2.dp, Color.White)
                         )
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1F1F1F)), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    )
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        if (currentProfile?.avatar != null) {
+                            AsyncImage(
+                                model = currentProfile.avatar,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
@@ -162,16 +195,21 @@ private fun HeaderButton(
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(44.dp),
+        modifier = Modifier.size(40.dp),
         shape = ClickableSurfaceDefaults.shape(CircleShape),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.White.copy(alpha = 0.15f)
         )
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

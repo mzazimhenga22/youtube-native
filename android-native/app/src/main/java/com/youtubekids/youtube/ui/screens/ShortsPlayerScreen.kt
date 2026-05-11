@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
@@ -43,14 +44,14 @@ fun ShortsPlayerScreen(
 ) {
     var shorts by remember { mutableStateOf(listOf(initialVideo)) }
     val pagerState = rememberPagerState(pageCount = { shorts.size })
-    
+
     LaunchedEffect(Unit) {
         val related = repository.search("shorts viral")
         shorts = listOf(initialVideo) + related.filter { it.id != initialVideo.id }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF050505))) {
-        // 1. Ambient Background Orbs
+        // Ambient orbs
         ShortsAmbientCanvas()
 
         VerticalPager(
@@ -66,21 +67,37 @@ fun ShortsPlayerScreen(
             )
         }
 
-        // Exit Button
+        // ── Back Button ──
         Surface(
             onClick = onClose,
-            modifier = Modifier.padding(48.dp).size(48.dp).align(Alignment.TopStart),
+            modifier = Modifier.padding(24.dp).size(40.dp).align(Alignment.TopStart),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.White.copy(alpha = 0.1f),
                 focusedContainerColor = Color.White
             )
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = null,
-                    tint = if (MaterialTheme.colorScheme.onSurface == Color.Black) Color.Black else Color.White
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = LocalContentColor.current, modifier = Modifier.size(20.dp))
+            }
+        }
+
+        // ── Page indicator (right edge) ──
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            repeat(minOf(shorts.size, 8)) { i ->
+                val isActive = pagerState.currentPage == i
+                Box(
+                    modifier = Modifier
+                        .size(if (isActive) 8.dp else 5.dp)
+                        .background(
+                            if (isActive) Color.White else Color.White.copy(alpha = 0.2f),
+                            CircleShape
+                        )
                 )
             }
         }
@@ -114,18 +131,28 @@ fun ShortPage(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        // Floating Player Card
+        // ── Floating Player Card ──
         Surface(
-            onClick = { 
+            onClick = {
                 isPlaying = !isPlaying
                 exoPlayer.playWhenReady = isPlaying
             },
             modifier = Modifier
-                .height(800.dp)
-                .width(450.dp),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(48.dp)),
+                .height(580.dp)
+                .width(326.dp),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(28.dp)),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
-            border = ClickableSurfaceDefaults.border(focusedBorder = Border(androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.3f))))
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(
+                    androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.4f))
+                )
+            ),
+            glow = ClickableSurfaceDefaults.glow(
+                focusedGlow = Glow(
+                    elevationColor = Color.White.copy(alpha = 0.1f),
+                    elevation = 16.dp
+                )
+            )
         ) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                 if (isActive && streamUrl != null) {
@@ -149,125 +176,127 @@ fun ShortPage(
                     )
                 }
 
-                // Info Overlay
+                // Bottom gradient
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
-                                startY = 500f
+                                colors = listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.8f)),
+                                startY = 300f
                             )
                         )
                 )
 
+                // Info overlay
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(32.dp)
+                        .padding(20.dp)
                 ) {
+                    // Channel row
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(32.dp)
                                 .clip(CircleShape)
                                 .background(Color.DarkGray)
                         ) {
                             AsyncImage(
                                 model = video.thumbnail,
                                 contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
                                 text = "@${video.channel.replace(" ", "").lowercase()}",
                                 color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Black
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "${video.views} Views",
-                                color = Color.Gray,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
+                                text = "${video.views} views",
+                                color = Color.White.copy(alpha = 0.4f),
+                                fontSize = 11.sp
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = video.title,
                         color = Color.White,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
-                        lineHeight = 32.sp,
-                        maxLines = 2
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 20.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                // Progress Bar
+                // Progress bar at absolute bottom
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp, start = 32.dp, end = 32.dp)
+                        .padding(horizontal = 20.dp, vertical = 6.dp)
                         .fillMaxWidth()
-                        .height(4.dp)
-                        .background(Color.White.copy(alpha = 0.2f), CircleShape)
-                ) {
-                    // Progress could be synced with exoPlayer here
-                }
+                        .height(3.dp)
+                        .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                )
             }
         }
 
-        Spacer(modifier = Modifier.width(64.dp))
+        Spacer(modifier = Modifier.width(32.dp))
 
-        // Action Dock
+        // ── Action Dock ──
         Column(
             modifier = Modifier.wrapContentHeight(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             ShortsAction(Icons.Default.ThumbUp, "Like", Color(0xFF00E5FF))
-            ShortsAction(Icons.Default.ThumbDown, "Dislike", Color(0xFFFF3D00))
-            ShortsAction(Icons.Default.Message, "Talk", Color(0xFFFFD600))
+            ShortsAction(Icons.Default.ThumbDown, "Nah", Color(0xFFFF3D00))
+            ShortsAction(Icons.Default.Message, "Chat", Color(0xFFFFD600))
             ShortsAction(Icons.Default.Share, "Send", Color(0xFF00E676))
             ShortsAction(Icons.Default.MoreVert, null, Color.White)
         }
     }
 }
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun ShortsAction(icon: ImageVector, label: String?, color: Color) {
     var isFocused by remember { mutableStateOf(false) }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             onClick = {},
-            modifier = Modifier.size(64.dp).onFocusChanged { isFocused = it.isFocused },
+            modifier = Modifier.size(44.dp).onFocusChanged { isFocused = it.isFocused },
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color.White.copy(alpha = 0.1f),
+                containerColor = Color.White.copy(alpha = 0.08f),
                 focusedContainerColor = Color.White
             )
         ) {
-            Box(contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Icon(
                     icon,
-                    contentDescription = null,
+                    contentDescription = label,
                     tint = if (isFocused) Color.Black else color,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
         if (label != null) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = label.uppercase(),
-                color = if (isFocused) Color.White else Color.White.copy(alpha = 0.4f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 1.sp
+                color = if (isFocused) Color.White else Color.White.copy(alpha = 0.35f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
             )
         }
     }
@@ -276,33 +305,29 @@ fun ShortsAction(icon: ImageVector, label: String?, color: Color) {
 @Composable
 fun ShortsAmbientCanvas() {
     val infiniteTransition = rememberInfiniteTransition(label = "shortsAmbient")
-    
+
     val orb1Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.05f,
-        targetValue = 0.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(5000),
-            repeatMode = RepeatMode.Reverse
-        ),
+        initialValue = 0.04f,
+        targetValue = 0.1f,
+        animationSpec = infiniteRepeatable(tween(5000), RepeatMode.Reverse),
         label = "orb1"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
-                .offset(x = (-100).dp, y = (-100).dp)
-                .size(500.dp)
+                .offset(x = (-80).dp, y = (-80).dp)
+                .size(400.dp)
                 .alpha(orb1Alpha)
                 .background(Color(0xFFFF0048), CircleShape)
         )
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .offset(x = 100.dp, y = 100.dp)
-                .size(600.dp)
-                .alpha(0.1f)
+                .offset(x = 80.dp, y = 80.dp)
+                .size(500.dp)
+                .alpha(0.06f)
                 .background(Color(0xFF00E5FF), CircleShape)
         )
     }
 }
-

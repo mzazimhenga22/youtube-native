@@ -1,7 +1,6 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
 package com.youtubekids.youtube.ui.components
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,6 +21,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
@@ -38,61 +38,107 @@ fun CommentsSidebar(
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .width(480.dp)
-            .background(Color(0xFF050505).copy(alpha = 0.85f))
+            .width(380.dp)
+            .background(Color(0xFF0A0A0A).copy(alpha = 0.92f))
     ) {
-        // Side Aura Light Bleed
+        // Subtle edge glow
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(Color.Red.copy(alpha = 0.1f), Color.Transparent),
+                        colors = listOf(Color.Red.copy(alpha = 0.04f), Color.Transparent),
                         startX = Float.POSITIVE_INFINITY,
                         endX = 0f
                     )
                 )
         )
 
-        Column(modifier = Modifier.padding(40.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Header
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Message, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Comments", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black)
+                    Icon(Icons.Default.Message, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Comments", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        "${comments.size}",
+                        color = Color.White.copy(alpha = 0.3f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
                 Surface(
                     onClick = onClose,
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
-                    colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
+                    modifier = Modifier.size(32.dp),
+                    shape = ClickableSurfaceDefaults.shape(CircleShape),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.White.copy(alpha = 0.08f),
+                        focusedContainerColor = Color.White
+                    )
                 ) {
-                    Text("Close", modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp), color = if (androidx.tv.material3.LocalContentColor.current == Color.Black) Color.Black else Color.White, fontWeight = FontWeight.Black)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Close, contentDescription = null, tint = LocalContentColor.current, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Comments list
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(comments) { comment ->
                     Surface(
                         onClick = {},
                         modifier = Modifier.fillMaxWidth(),
-                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
-                        colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.05f), focusedContainerColor = Color.White.copy(alpha = 0.1f))
+                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color.White.copy(alpha = 0.03f),
+                            focusedContainerColor = Color.White.copy(alpha = 0.08f)
+                        )
                     ) {
-                        Row(modifier = Modifier.padding(16.dp)) {
-                            Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(Color.DarkGray)) {
+                        Row(modifier = Modifier.padding(10.dp)) {
+                            Box(
+                                modifier = Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF1A1A1A)),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 if (comment.avatar != null) {
-                                    AsyncImage(model = comment.avatar, contentDescription = null, contentScale = ContentScale.Crop)
+                                    AsyncImage(
+                                        model = comment.avatar,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
                                 } else {
-                                    Icon(Icons.Default.Person, contentDescription = null, tint = Color.White, modifier = Modifier.align(Alignment.Center))
+                                    Icon(Icons.Default.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
                                 }
                             }
-                            Column(modifier = Modifier.padding(start = 14.dp)) {
-                                Text("@${comment.user}", color = Color.Gray, fontSize = 16.sp, fontWeight = FontWeight.Black)
-                                Text(comment.text, color = Color.White, fontSize = 18.sp, modifier = Modifier.padding(top = 4.dp))
+                            Column(modifier = Modifier.padding(start = 10.dp).weight(1f)) {
+                                Text(
+                                    "@${comment.user}",
+                                    color = Color.White.copy(alpha = 0.4f),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    comment.text,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 13.sp,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (comment.likes != "0") {
+                                    Text(
+                                        "♡ ${comment.likes}",
+                                        color = Color.White.copy(alpha = 0.25f),
+                                        fontSize = 10.sp,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -112,52 +158,59 @@ fun LyricsSidebar(
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .width(480.dp)
-            .background(Color(0xFF050505).copy(alpha = 0.85f))
+            .width(380.dp)
+            .background(Color(0xFF0A0A0A).copy(alpha = 0.92f))
     ) {
-        // Side Aura Light Bleed
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(Color.Red.copy(alpha = 0.1f), Color.Transparent),
+                        colors = listOf(Color(0xFF7700FF).copy(alpha = 0.04f), Color.Transparent),
                         startX = Float.POSITIVE_INFINITY,
                         endX = 0f
                     )
                 )
         )
 
-        Column(modifier = Modifier.padding(40.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Header
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Lyrics", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black)
+                    Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Lyrics", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
                 Surface(
                     onClick = onClose,
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
-                    colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
+                    modifier = Modifier.size(32.dp),
+                    shape = ClickableSurfaceDefaults.shape(CircleShape),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.White.copy(alpha = 0.08f),
+                        focusedContainerColor = Color.White
+                    )
                 ) {
-                    Text("Close", modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp), color = if (androidx.tv.material3.LocalContentColor.current == Color.Black) Color.Black else Color.White, fontWeight = FontWeight.Black)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Close, contentDescription = null, tint = LocalContentColor.current, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(32.dp)) {
+            // Lyrics
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 items(lyrics.size) { index ->
                     val isActive = index == activeLineIndex
                     Text(
                         text = lyrics[index],
-                        color = if (isActive) Color.White else Color.White.copy(alpha = 0.4f),
-                        fontSize = if (isActive) 40.sp else 32.sp,
-                        fontWeight = FontWeight.Black,
-                        lineHeight = if (isActive) 48.sp else 40.sp,
-                        modifier = Modifier.alpha(if (isActive) 1f else 0.4f)
+                        color = if (isActive) Color.White else Color.White.copy(alpha = 0.25f),
+                        fontSize = if (isActive) 20.sp else 16.sp,
+                        fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                        lineHeight = if (isActive) 26.sp else 22.sp,
+                        modifier = Modifier.alpha(if (isActive) 1f else 0.5f)
                     )
                 }
             }

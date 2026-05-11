@@ -111,30 +111,15 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 } else {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Row(modifier = Modifier.weight(1f)) {
-                        // Sidebar is shown on most screens, but hidden in player and kids mode
-                        if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-home") {
-                            Sidebar(
-                                side = "left",
-                                selectedRoute = currentRoute ?: "home",
-                                currentProfile = currentProfile,
-                                onNavigate = { route ->
-                                    navController.navigate(route) {
-                                        popUpTo("home") { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            )
-                        }
-
-                        Box(modifier = Modifier.weight(1f)) {
-                            NavHost(
-                                navController = navController,
-                                startDestination = if (currentProfile?.mode == "kids") "kids-home" else "home",
-                                modifier = Modifier.fillMaxSize()
-                            ) {
+                // Full-screen layered layout: content fills everything,
+                // sidebars + header float on top as overlays
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // ── Layer 1: Full-width content ──
+                    NavHost(
+                        navController = navController,
+                        startDestination = if (currentProfile?.mode == "kids") "kids-home" else "home",
+                        modifier = Modifier.fillMaxSize()
+                    ) {
                             composable("home") {
                                 HomeScreen(
                                     onVideoClick = { video ->
@@ -315,16 +300,36 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // Floating Header Pods
+                        // ── Layer 2: Floating Header (top) ──
                         if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-home" && currentRoute != "search") {
-                            FloatingHeader(
+                            Box(modifier = Modifier.align(Alignment.TopCenter)) {
+                                FloatingHeader(
+                                    currentProfile = currentProfile,
+                                    currentRoute = currentRoute,
+                                    onSearchClick = { navController.navigate("search") },
+                                    onProfileClick = { navController.navigate("settings") }
+                                )
+                            }
+                        }
+
+                        // ── Layer 3: Left Sidebar (floating, far left) ──
+                        if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-home") {
+                            Sidebar(
+                                side = "left",
+                                selectedRoute = currentRoute ?: "home",
                                 currentProfile = currentProfile,
-                                currentRoute = currentRoute,
-                                onSearchClick = { navController.navigate("search") },
-                                onProfileClick = { navController.navigate("settings") }
+                                onNavigate = { route ->
+                                    navController.navigate(route) {
+                                        popUpTo("home") { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                modifier = Modifier.align(Alignment.CenterStart)
                             )
                         }
 
+                        // ── Layer 4: Right Sidebar (floating, far right) ──
                         if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-home") {
                             Sidebar(
                                 side = "right",
@@ -335,22 +340,24 @@ class MainActivity : ComponentActivity() {
                                         launchSingleTop = true
                                         restoreState = true
                                     }
-                                }
+                                },
+                                modifier = Modifier.align(Alignment.CenterEnd)
                             )
                         }
-                    }
-                }
 
-                // MiniPlayer — in Column layout so D-pad Down can reach it
-                    if (globalVideo != null && currentRoute != "player") {
-                        MiniPlayer(
-                            video = globalVideo,
-                            isPlaying = isGlobalPlaying,
-                            progress = globalProgress,
-                            onTogglePlay = { viewModel.setGlobalPlayback(globalVideo, null, !isGlobalPlaying) },
-                            onOpenFull = { navController.navigate("player") },
-                            onClose = { viewModel.setGlobalPlayback(null, null) }
-                        )
+                        // ── Layer 5: MiniPlayer (bottom) ──
+                        if (globalVideo != null && currentRoute != "player") {
+                            Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                                MiniPlayer(
+                                    video = globalVideo,
+                                    isPlaying = isGlobalPlaying,
+                                    progress = globalProgress,
+                                    onTogglePlay = { viewModel.setGlobalPlayback(globalVideo, null, !isGlobalPlaying) },
+                                    onOpenFull = { navController.navigate("player") },
+                                    onClose = { viewModel.setGlobalPlayback(null, null) }
+                                )
+                            }
+                        }
                     }
                 }
 

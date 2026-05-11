@@ -1,7 +1,6 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
 package com.youtubekids.youtube.ui.screens
 
-import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -19,12 +18,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -60,7 +57,7 @@ fun KidsHomeScreen(
     var activeCategory by remember { mutableStateOf("home") }
     var sections by remember { mutableStateOf<List<Pair<String, List<Video>>>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    
+
     val watchHistory by viewModel.watchHistory.collectAsState()
     val currentProfile by viewModel.currentProfile.collectAsState()
 
@@ -87,7 +84,7 @@ fun KidsHomeScreen(
                     val learning = async { repository.getKidsCategory("learning") }
                     val music = async { repository.getKidsCategory("music") }
                     val explore = async { repository.getKidsCategory("explore") }
-                    
+
                     listOf(
                         "Popular Shows" to shows.await(),
                         "Time to Learn!" to learning.await(),
@@ -96,9 +93,7 @@ fun KidsHomeScreen(
                     )
                 }
             }
-            "mystuff" -> {
-                listOf("My Stuff" to watchHistory)
-            }
+            "mystuff" -> listOf("My Stuff" to watchHistory)
             else -> {
                 val title = activeCategory.replaceFirstChar { it.uppercase() }
                 listOf(title to repository.getKidsCategory(activeCategory))
@@ -113,25 +108,32 @@ fun KidsHomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // 1. Immersive Background
+        // Background image
         androidx.compose.foundation.Image(
             painter = painterResource(id = R.drawable.kids_bg),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)))
-        Box(modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(Color.Transparent, Color(0xFF0F172A).copy(alpha = 0.8f)))
-        ))
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    listOf(Color.Transparent, Color(0xFF0F172A).copy(alpha = 0.85f))
+                )
+            )
+        )
 
-        // 2. Animated Floating Bubbles
+        // Ambient bubbles
         AmbientBubbles()
 
         Row(modifier = Modifier.fillMaxSize()) {
-            // 3. Floating Sidebar Pod
+            // ── Sidebar ──
             Column(
-                modifier = Modifier.fillMaxHeight().width(192.dp).padding(start = 48.dp),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(100.dp)
+                    .padding(start = 20.dp, top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -141,77 +143,77 @@ fun KidsHomeScreen(
                         isSelected = activeCategory == item.id,
                         onClick = { activeCategory = item.id }
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
-                
-                Spacer(modifier = Modifier.height(48.dp))
-                
-                // Logout Pod
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Logout
                 Surface(
                     onClick = { viewModel.logout() },
-                    modifier = Modifier.size(72.dp),
+                    modifier = Modifier.size(44.dp),
                     shape = ClickableSurfaceDefaults.shape(CircleShape),
-                    colors = ClickableSurfaceDefaults.colors(containerColor = Color.Red.copy(alpha = 0.6f), focusedContainerColor = Color.Red),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.25f)
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.Red.copy(alpha = 0.5f),
+                        focusedContainerColor = Color.Red
+                    ),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Logout, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Logout, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                 }
             }
 
-            // 4. Main Content Area
+            // ── Content ──
             LazyColumn(
                 modifier = Modifier.fillMaxSize().weight(1f),
-                contentPadding = PaddingValues(top = 60.dp, bottom = 120.dp, end = 60.dp)
+                contentPadding = PaddingValues(top = 56.dp, bottom = 100.dp, end = 40.dp)
             ) {
-                // Large Header
+                // Header
                 item {
-                    Column(modifier = Modifier.padding(bottom = 64.dp)) {
+                    Column(modifier = Modifier.padding(bottom = 32.dp, start = 8.dp)) {
                         Text(
-                            text = if (activeCategory == "home") "KIDS MODE" else activeCategory.uppercase(),
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.Black,
-                                brush = Brush.linearGradient(listOf(Color(0xFF9061FF), Color(0xFF4CC9F0))),
-                                shadow = Shadow(color = Color.Black.copy(alpha = 0.6f), blurRadius = 24f, offset = Offset(4f, 4f))
-                            ),
-                            fontSize = 100.sp,
-                            letterSpacing = (-4).sp
+                            text = if (activeCategory == "home") "Kids Mode" else activeCategory.replaceFirstChar { it.uppercase() },
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = (-1).sp
                         )
                         Text(
-                            text = if (activeCategory == "home") "A world of fun, learning and adventure!" else "Discover amazing $activeCategory content!",
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                shadow = Shadow(color = Color.Black.copy(alpha = 0.5f), blurRadius = 12f)
-                            ),
-                            color = Color.White.copy(alpha = 0.9f)
+                            text = if (activeCategory == "home") "A world of fun, learning & adventure!" else "Discover amazing $activeCategory content!",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
 
-                // Horizontal Video Rails
+                // Video rails
                 items(sections) { (title, videos) ->
-                    Column(modifier = Modifier.padding(bottom = 64.dp)) {
+                    Column(modifier = Modifier.padding(bottom = 24.dp)) {
                         Text(
                             text = title,
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontWeight = FontWeight.Black,
-                                shadow = Shadow(color = Color.Black.copy(alpha = 0.5f), blurRadius = 10f)
-                            ),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            modifier = Modifier.padding(bottom = 24.dp)
+                            modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
                         )
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                            items(videos) { video ->
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(videos, key = { it.id }) { video ->
                                 KidsVideoCard(video = video, onClick = { onVideoClick(video) })
                             }
                         }
                     }
                 }
 
-                // 5. Bottom Navigation Pods
+                // Bottom pods
                 item {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 24.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -227,99 +229,110 @@ fun KidsHomeScreen(
             }
         }
 
-        // 6. Profile Greeting Pod (Top-Right)
+        // ── Profile Greeting (Top-Right) ──
         Surface(
-            onClick = { /* Open Profile Modal */ },
+            onClick = {},
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(48.dp),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(100.dp)),
+                .padding(20.dp),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color.Black.copy(alpha = 0.2f),
+                containerColor = Color.Black.copy(alpha = 0.3f),
                 focusedContainerColor = Color.White.copy(alpha = 0.2f)
             ),
             border = ClickableSurfaceDefaults.border(
-                border = Border(BorderStroke(2.dp, Color.White.copy(alpha = 0.2f))),
-                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))),
+                focusedBorder = Border(BorderStroke(1.5.dp, Color.White))
             )
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.size(56.dp).clip(CircleShape).background(Color(0xFFFB923C)),
+                    modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(0xFFFB923C)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Face, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                    Icon(Icons.Default.Face, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Hi, ${currentProfile?.name ?: "Explorer"}!",
                     color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(start = 16.dp)
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun KidsSidebarItem(item: KidsNavItem, isSelected: Boolean, onClick: () -> Unit) {
     var isFocused by remember { mutableStateOf(false) }
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.size(96.dp).onFocusChanged { isFocused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(CircleShape),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.25f),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) Color(0xFF9061FF) else Color.Black.copy(alpha = 0.2f),
-            focusedContainerColor = Color.White
-        )
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                item.icon,
-                contentDescription = null,
-                tint = if (isFocused) Color(0xFF9061FF) else Color.White,
-                modifier = Modifier.size(48.dp)
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.size(52.dp).onFocusChanged { isFocused = it.isFocused },
+            shape = ClickableSurfaceDefaults.shape(CircleShape),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isSelected) Color(0xFF9061FF) else Color.Black.copy(alpha = 0.25f),
+                focusedContainerColor = Color.White
             )
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    item.icon,
+                    contentDescription = item.label,
+                    tint = if (isFocused) Color(0xFF9061FF) else Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            item.label,
+            color = if (isSelected || isFocused) Color.White else Color.White.copy(alpha = 0.4f),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun KidsBottomPod(item: KidsNavItem, isSelected: Boolean, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(horizontal = 24.dp)
+        modifier = Modifier.padding(horizontal = 12.dp)
     ) {
         Surface(
             onClick = onClick,
-            modifier = Modifier.size(100.dp),
+            modifier = Modifier.size(56.dp),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.25f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
             colors = ClickableSurfaceDefaults.colors(containerColor = item.color),
             border = ClickableSurfaceDefaults.border(
-                border = if (isSelected) Border(BorderStroke(4.dp, Color.White)) else Border.None,
-                focusedBorder = Border(BorderStroke(4.dp, Color.White))
+                border = if (isSelected) Border(BorderStroke(2.dp, Color.White)) else Border.None,
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(item.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(48.dp))
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(item.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
             }
         }
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = item.label.uppercase(),
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Black, letterSpacing = 2.sp),
-            color = Color.White,
-            modifier = Modifier.padding(top = 12.dp)
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp
         )
     }
 }
-
-
 
 @Composable
 private fun AmbientBubbles() {
@@ -331,17 +344,17 @@ private fun AmbientBubbles() {
         label = "bubbleY"
     )
 
-    Canvas(modifier = Modifier.fillMaxSize().alpha(0.15f)) {
-        val count = 20
+    Canvas(modifier = Modifier.fillMaxSize().alpha(0.08f)) {
+        val count = 12
         for (i in 0 until count) {
             val x = (i * 373) % size.width
             val y = (size.height + 200 - ((bubbleY + (i * 450)) % (size.height + 400)))
-            val radius = 30f + (i * 12) % 70f
+            val radius = 20f + (i * 10) % 50f
             drawCircle(
                 color = Color.White,
                 radius = radius,
                 center = Offset(x, y),
-                style = Stroke(width = 2.5f)
+                style = Stroke(width = 1.5f)
             )
         }
     }
