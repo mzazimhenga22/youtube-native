@@ -220,7 +220,10 @@ fun VideoPlayerScreen(
                 thumbnail = currentVideo.thumbnail,
                 error = error!!,
                 onRetry = { retryKey++ },
-                onBack = onClose
+                onBack = {
+                    viewModel.setGlobalPlayback(null, null)
+                    onClose()
+                }
             )
         } else {
             when {
@@ -236,7 +239,10 @@ fun VideoPlayerScreen(
                         onSelectVideo = { nextVideo ->
                             currentVideo = nextVideo
                         },
-                        onClose = onClose
+                        onClose = {
+                            viewModel.setGlobalPlayback(null, null)
+                            onClose()
+                        }
                     )
                 }
                 currentVideo.duration == "" || currentVideo.isLive -> {
@@ -259,7 +265,7 @@ fun VideoPlayerScreen(
                                 currentVideo = relatedVideos[0]
                             }
                         },
-                        onClose = onClose
+                        onClose = onClose // Keeps MiniPlayer for music
                     )
                 }
                 else -> {
@@ -289,9 +295,14 @@ fun VideoPlayerScreen(
                             playbackSpeed = speed
                             exoPlayer.setPlaybackSpeed(speed)
                         },
+                        onToggleLiked = { viewModel.toggleLiked(currentVideo) },
+                        onToggleWatchLater = { viewModel.toggleWatchLater(currentVideo) },
                         currentSpeed = playbackSpeed,
                         currentChapter = currentChapter?.title,
-                        onClose = onClose
+                        onClose = {
+                            viewModel.setGlobalPlayback(null, null)
+                            onClose()
+                        }
                     )
                 }
             }

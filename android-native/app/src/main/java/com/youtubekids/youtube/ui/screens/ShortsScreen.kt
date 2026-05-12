@@ -54,7 +54,7 @@ fun ShortsScreen(
     LaunchedEffect(Unit) {
         isLoading = true
         try {
-            shorts = repository.search("viral shorts 2024")
+            shorts = repository.getShorts()
             viralShorts = shorts.take(10)
             if (shorts.isNotEmpty()) focusedShort = shorts[0]
         } finally {

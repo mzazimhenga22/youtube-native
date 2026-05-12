@@ -5,6 +5,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,11 +15,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -40,9 +41,9 @@ fun ProfilePickerScreen(
     onProfileSelected: (Profile) -> Unit
 ) {
     val profiles = listOf(
-        Profile("p1", "Gamer Pro", "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400", "regular"),
-        Profile("p2", "Kids Mode", "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400", "kids"),
-        Profile("p3", "Guest", "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400", "regular")
+        Profile("p1", "Gamer Pro", "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=400", "regular"),
+        Profile("p2", "Kids Mode", "https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=400", "kids"),
+        Profile("p3", "Guest", "https://images.unsplash.com/photo-1544723795-3cj5a26c4293?w=400", "regular")
     )
 
     var focusedId by remember { mutableStateOf<String?>(null) }
@@ -51,60 +52,41 @@ fun ProfilePickerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF050505)),
+            .background(Color(0xFF0F0F13)), // Deep cinematic dark background
         contentAlignment = Alignment.Center
     ) {
-        // 1. Ambient Dynamic Background
-        AmbientBackground()
+        // 1. Cinematic Ambient Background
+        CinematicBackground(focusedId)
 
-        // 2. Kids Mode Mascot Pop-out
-        AnimatedVisibility(
-            visible = focusedId == "p2",
-            enter = fadeIn(tween(1000)) + scaleIn(tween(800), initialScale = 0.8f),
-            exit = fadeOut(tween(500)) + scaleOut(tween(500), targetScale = 0.8f),
-            modifier = Modifier.align(Alignment.BottomEnd).offset(x = 100.dp, y = 100.dp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize().padding(top = 100.dp)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.kids_bg),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(600.dp)
-                    .alpha(0.2f)
-                    .rotate(-15f),
-                contentScale = ContentScale.Fit
-            )
-        }
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             // Header Section
             AnimatedVisibility(
                 visible = true,
-                enter = fadeIn(tween(1200)) + slideInVertically(tween(1200)) { -40 },
-                modifier = Modifier.padding(bottom = 120.dp)
+                enter = fadeIn(tween(1200)) + slideInVertically(tween(1200)) { -60 },
+                modifier = Modifier.padding(bottom = 80.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Who's Watching?",
+                        text = "Who's watching?",
                         style = MaterialTheme.typography.displayLarge.copy(
-                            fontSize = 96.sp,
-                            fontWeight = FontWeight.Black,
-                            lineHeight = 104.sp,
-                            letterSpacing = (-3).sp
+                            fontSize = 72.sp,
+                            fontWeight = FontWeight.Light,
+                            letterSpacing = 1.sp
                         ),
                         color = Color.White
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(modifier = Modifier.width(128.dp).height(4.dp).background(Color.White.copy(alpha = 0.2f), CircleShape))
                 }
             }
 
             // Profiles Grid
             Row(
-                modifier = Modifier.padding(horizontal = 48.dp),
-                horizontalArrangement = Arrangement.spacedBy(64.dp),
+                horizontalArrangement = Arrangement.spacedBy(40.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                profiles.forEachIndexed { index, profile ->
+                profiles.forEach { profile ->
                     ProfileCard(
                         profile = profile,
                         isDimmed = focusedId != null && focusedId != profile.id,
@@ -122,32 +104,12 @@ fun ProfilePickerScreen(
             }
         }
 
-        // 3. Premium Brand Badge
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 80.dp)
-                .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(100.dp))
-                .padding(horizontal = 40.dp, vertical = 20.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Red, modifier = Modifier.size(28.dp))
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    "YOUTUBE",
-                    color = Color.White.copy(alpha = 0.4f),
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 12.sp
-                )
-            }
-        }
-
-        // 4. Auth/Sign-In Drawer
+        // Auth/Sign-In Drawer (Overlay)
         AnimatedVisibility(
             visible = showSignInDrawer,
-            enter = slideInHorizontally(tween(500)) { it } + fadeIn(),
-            exit = slideOutHorizontally(tween(300)) { it } + fadeOut()
+            enter = slideInHorizontally(tween(500, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(500)),
+            exit = slideOutHorizontally(tween(400, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(400)),
+            modifier = Modifier.align(Alignment.CenterEnd)
         ) {
             AuthDrawer(
                 onClose = { showSignInDrawer = false },
@@ -161,36 +123,57 @@ fun ProfilePickerScreen(
 }
 
 @Composable
-private fun AmbientBackground() {
-    val infiniteTransition = rememberInfiniteTransition(label = "ambient")
-    val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(tween(4000, easing = LinearOutSlowInEasing), RepeatMode.Reverse),
-        label = "pulse"
-    )
-    val rotation by infiniteTransition.animateFloat(
+private fun CinematicBackground(focusedId: String?) {
+    val infiniteTransition = rememberInfiniteTransition(label = "ambient_bg")
+    
+    // Smooth slow rotation for a premium feel
+    val rotation1 by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(20000, easing = LinearEasing), RepeatMode.Restart),
-        label = "rotation"
+        animationSpec = infiniteRepeatable(tween(40000, easing = LinearEasing), RepeatMode.Restart),
+        label = "rotation1"
+    )
+    val rotation2 by infiniteTransition.animateFloat(
+        initialValue = 360f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(tween(50000, easing = LinearEasing), RepeatMode.Restart),
+        label = "rotation2"
+    )
+
+    // Dynamic color shifting based on focus
+    val isKidsFocused = focusedId == "p2"
+    val color1 by animateColorAsState(
+        targetValue = if (isKidsFocused) Color(0xFF00E5FF).copy(alpha = 0.15f) else Color(0xFFFF0000).copy(alpha = 0.1f),
+        animationSpec = tween(1500)
+    )
+    val color2 by animateColorAsState(
+        targetValue = if (isKidsFocused) Color(0xFFFF00AA).copy(alpha = 0.15f) else Color(0xFF4A00E0).copy(alpha = 0.1f),
+        animationSpec = tween(1500)
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .size(1200.dp)
-                .rotate(rotation)
-                .scale(1.5f)
-                .alpha(pulse)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color.Red.copy(alpha = 0.2f), Color.Transparent)
-                    )
-                )
+                .offset(x = (-300).dp, y = (-200).dp)
+                .size(1400.dp)
+                .rotate(rotation1)
+                .blur(160.dp)
+                .background(Brush.radialGradient(listOf(color1, Color.Transparent)))
         )
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)))
+        Box(
+            modifier = Modifier
+                .offset(x = 300.dp, y = 200.dp)
+                .size(1600.dp)
+                .rotate(rotation2)
+                .blur(180.dp)
+                .background(Brush.radialGradient(listOf(color2, Color.Transparent)))
+        )
+        // Vignette to darken edges
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.radialGradient(listOf(Color.Transparent, Color(0xFF050505).copy(alpha = 0.8f)), radius = 1200f))
+        )
     }
 }
 
@@ -204,75 +187,103 @@ private fun ProfileCard(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     
+    // Smooth, snappy scaling specifically tuned for TV
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.2f else 1.0f,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+    )
+
+    val alpha by animateFloatAsState(
+        targetValue = if (isFocused) 1.0f else if (isDimmed) 0.3f else 0.7f,
+        animationSpec = tween(300)
+    )
+
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 1.0f else 0.0f,
+        animationSpec = tween(300)
+    )
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.onFocusChanged { 
-            isFocused = it.isFocused
-            if (isFocused) onFocus()
-        }
+        modifier = Modifier
+            .onFocusChanged { 
+                isFocused = it.isFocused
+                if (isFocused) onFocus()
+            }
+            .alpha(alpha)
     ) {
-        Surface(
-            onClick = onClick,
-            modifier = Modifier.size(224.dp),
-            shape = ClickableSurfaceDefaults.shape(CircleShape),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.14f),
-            colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color.Transparent,
-                focusedContainerColor = Color.White
-            ),
-            border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(androidx.compose.foundation.BorderStroke(8.dp, Color.White))
-            )
+        Box(
+            modifier = Modifier.size(240.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                AsyncImage(
-                    model = profile.avatar,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize().alpha(if (isDimmed && !isFocused) 0.45f else 1f),
-                    contentScale = ContentScale.Crop
+            // Outer Glow when focused
+            Box(
+                modifier = Modifier
+                    .size(230.dp)
+                    .scale(scale)
+                    .alpha(glowAlpha)
+                    .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                    .blur(30.dp)
+            )
+
+            Surface(
+                onClick = onClick,
+                modifier = Modifier
+                    .size(200.dp)
+                    .scale(scale),
+                shape = ClickableSurfaceDefaults.shape(CircleShape),
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent
+                ),
+                border = ClickableSurfaceDefaults.border(
+                    border = Border(androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.1f))),
+                    focusedBorder = Border(androidx.compose.foundation.BorderStroke(6.dp, Color.White))
                 )
-                
-                if (profile.mode == "kids") {
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AsyncImage(
+                        model = profile.avatar,
+                        contentDescription = profile.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    
+                    // Gradient overlay at the bottom of the avatar
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(16.dp)
-                            .size(48.dp)
-                            .background(Color(0xFFFFD600), CircleShape)
-                            .padding(8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Shield, contentDescription = null, tint = Color.Black)
+                            .fillMaxSize()
+                            .background(Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
+                                startY = 100f
+                            ))
+                    )
+
+                    // Kids Mode icon inside the avatar bottom center
+                    if (profile.mode == "kids") {
+                        Icon(
+                            Icons.Default.ChildCare,
+                            contentDescription = "Kids Mode",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 16.dp)
+                                .size(32.dp)
+                        )
                     }
                 }
             }
         }
         
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         
         Text(
             text = profile.name,
-            color = if (isFocused) Color.White else Color(0xFF71717A),
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Black
+            color = Color.White,
+            fontSize = 32.sp,
+            fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
+            modifier = Modifier.scale(if (isFocused) 1.05f else 1.0f)
         )
-        
-        AnimatedVisibility(visible = isFocused) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(100.dp))
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = if (profile.mode == "kids") "KIDS ACCOUNT" else "ADMIN",
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp
-                )
-            }
-        }
     }
 }
 
@@ -285,44 +296,77 @@ private fun AddProfileButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.2f else 1.0f,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+    )
+
+    val alpha by animateFloatAsState(
+        targetValue = if (isFocused) 1.0f else if (isDimmed) 0.3f else 0.7f,
+        animationSpec = tween(300)
+    )
+
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 1.0f else 0.0f,
+        animationSpec = tween(300)
+    )
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.onFocusChanged { 
-            isFocused = it.isFocused
-            if (isFocused) onFocus()
-        }
+        modifier = Modifier
+            .onFocusChanged { 
+                isFocused = it.isFocused
+                if (isFocused) onFocus()
+            }
+            .alpha(alpha)
     ) {
-        Surface(
-            onClick = onClick,
-            modifier = Modifier.size(224.dp),
-            shape = ClickableSurfaceDefaults.shape(CircleShape),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.14f),
-            colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isFocused) Color.White.copy(alpha = 0.1f) else Color.Transparent,
-                focusedContainerColor = Color.White.copy(alpha = 0.1f)
-            ),
-            border = ClickableSurfaceDefaults.border(
-                border = Border(androidx.compose.foundation.BorderStroke(4.dp, if (isFocused) Color.White else Color(0xFF27272A))),
-                focusedBorder = Border(androidx.compose.foundation.BorderStroke(4.dp, Color.White))
-            )
+        Box(
+            modifier = Modifier.size(240.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(
-                    Icons.Default.Add, 
-                    contentDescription = null, 
-                    tint = if (isFocused) Color.White else Color(0xFF3F3F46),
-                    modifier = Modifier.size(80.dp)
+            Box(
+                modifier = Modifier
+                    .size(230.dp)
+                    .scale(scale)
+                    .alpha(glowAlpha)
+                    .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                    .blur(30.dp)
+            )
+
+            Surface(
+                onClick = onClick,
+                modifier = Modifier
+                    .size(200.dp)
+                    .scale(scale),
+                shape = ClickableSurfaceDefaults.shape(CircleShape),
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = Color.White.copy(alpha = 0.05f),
+                    focusedContainerColor = Color.White.copy(alpha = 0.15f)
+                ),
+                border = ClickableSurfaceDefaults.border(
+                    border = Border(androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.1f))),
+                    focusedBorder = Border(androidx.compose.foundation.BorderStroke(6.dp, Color.White))
                 )
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Add, 
+                        contentDescription = "Add Profile", 
+                        tint = Color.White,
+                        modifier = Modifier.size(80.dp)
+                    )
+                }
             }
         }
         
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         
         Text(
             text = "Add Profile",
-            color = if (isFocused) Color.White else Color(0xFF3F3F46),
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Black
+            color = Color.White,
+            fontSize = 32.sp,
+            fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
+            modifier = Modifier.scale(if (isFocused) 1.05f else 1.0f)
         )
     }
 }
@@ -344,60 +388,73 @@ private fun AuthDrawer(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.6f))
+            .background(Color.Black.copy(alpha = 0.8f)) // Dim the background heavily
     ) {
-        // Click outside to close
-        Box(modifier = Modifier.fillMaxSize().padding(end = 600.dp)) {
-            Surface(onClick = onClose, modifier = Modifier.fillMaxSize(), colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent)) {}
+        // Click outside to close (left invisible overlay)
+        Box(modifier = Modifier.fillMaxSize().padding(end = 650.dp)) {
+            Surface(
+                onClick = onClose, 
+                modifier = Modifier.fillMaxSize(), 
+                colors = ClickableSurfaceDefaults.colors(containerColor = Color.Transparent, focusedContainerColor = Color.Transparent)
+            ) {}
         }
 
+        // Drawer Panel
         Box(
-            modifier = Modifier.fillMaxHeight().width(600.dp).align(Alignment.CenterEnd).background(Color(0xFF0F0F0F))
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(650.dp)
+                .align(Alignment.CenterEnd)
+                .background(Color(0xFF141416), RoundedCornerShape(topStart = 40.dp, bottomStart = 40.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(topStart = 40.dp, bottomStart = 40.dp))
+                .padding(64.dp)
         ) {
-            Column(modifier = Modifier.fillMaxSize().padding(64.dp)) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 64.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 60.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         "Sign In",
                         color = Color.White,
-                        fontSize = 60.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-2).sp
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-1).sp
                     )
                     Surface(
                         onClick = onClose,
                         shape = ClickableSurfaceDefaults.shape(CircleShape),
-                        colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.05f), focusedContainerColor = Color.White)
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = Color.White.copy(alpha = 0.1f), 
+                            focusedContainerColor = Color.White
+                        )
                     ) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = null,
+                            contentDescription = "Close",
                             tint = if (androidx.tv.material3.LocalContentColor.current == Color.Black) Color.Black else Color.White,
-                            modifier = Modifier.padding(16.dp).size(32.dp)
+                            modifier = Modifier.padding(16.dp).size(28.dp)
                         )
                     }
                 }
 
                 Text(
-                    "Sign in with your YouTube account to access your personalized library, history, and more.",
-                    color = Color(0xFF71717A),
+                    "Sign in with your YouTube account to access your personalized library, history, and tailored recommendations.",
+                    color = Color(0xFFA0A0A5),
                     fontSize = 24.sp,
-                    fontWeight = FontWeight.Medium,
-                    lineHeight = 32.sp,
-                    modifier = Modifier.padding(bottom = 48.dp)
+                    fontWeight = FontWeight.Normal,
+                    lineHeight = 34.sp,
+                    modifier = Modifier.padding(bottom = 56.dp)
                 )
 
-                // Auth Fields with simplistic simulation for TV (no soft keyboard handling here for brevity)
                 AuthField(
                     label = "Email Address", 
                     value = email, 
                     icon = Icons.Default.Email,
                     onValueChange = { email = it }
                 )
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
                 AuthField(
                     label = "Password", 
                     value = if (password.isEmpty()) "" else "••••••••", 
@@ -408,13 +465,14 @@ private fun AuthDrawer(
                 if (error != null) {
                     Text(
                         text = error!!,
-                        color = Color.Red,
+                        color = Color(0xFFFF4D4D),
                         fontSize = 18.sp,
-                        modifier = Modifier.padding(top = 16.dp)
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = 20.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.weight(1f))
 
                 Surface(
                     onClick = {
@@ -444,10 +502,14 @@ private fun AuthDrawer(
                             error = "Please enter email and password"
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(96.dp),
+                    modifier = Modifier.fillMaxWidth().height(80.dp),
                     enabled = !isLoading,
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(48.dp)),
-                    colors = ClickableSurfaceDefaults.colors(containerColor = Color.White, focusedContainerColor = Color.White.copy(alpha = 0.9f))
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(40.dp)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.White, 
+                        focusedContainerColor = Color(0xFFE5E5E5)
+                    ),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxSize(),
@@ -457,9 +519,9 @@ private fun AuthDrawer(
                         if (isLoading) {
                             com.youtubekids.youtube.ui.components.SingularityLoader()
                         } else {
-                            Text("CONTINUE", color = Color.Black, fontSize = 30.sp, fontWeight = FontWeight.Black)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Black, modifier = Modifier.size(32.dp))
+                            Text("CONTINUE", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp))
                         }
                     }
                 }
@@ -477,39 +539,40 @@ private fun AuthField(
     onValueChange: (String) -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    
     Column(modifier = Modifier.fillMaxWidth().onFocusChanged { isFocused = it.isFocused }) {
         Text(
             label.uppercase(),
-            color = Color(0xFF71717A),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 2.sp,
+            color = if (isFocused) Color.White else Color(0xFFA0A0A5),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.5.sp,
             modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
         )
         Surface(
-            onClick = { /* In real TV app, this would trigger a soft keyboard or virtual keypad */ 
-                // For demo/dev purposes, we'll allow mock entry via hard keyboard if available
-            },
+            onClick = { /* Simulated soft keyboard trigger */ },
             modifier = Modifier.fillMaxWidth(),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.White.copy(alpha = 0.05f),
-                focusedContainerColor = Color.White.copy(alpha = 0.1f)
+                focusedContainerColor = Color.White.copy(alpha = 0.15f)
             ),
             border = ClickableSurfaceDefaults.border(
-                border = Border(androidx.compose.foundation.BorderStroke(2.dp, if (isFocused) Color.White else Color.Transparent))
-            )
+                border = Border(androidx.compose.foundation.BorderStroke(2.dp, Color.Transparent)),
+                focusedBorder = Border(androidx.compose.foundation.BorderStroke(2.dp, Color.White))
+            ),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f)
         ) {
             Row(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(icon, contentDescription = null, tint = if (isFocused) Color.White else Color(0xFF71717A), modifier = Modifier.size(24.dp))
+                Icon(icon, contentDescription = null, tint = if (isFocused) Color.White else Color(0xFFA0A0A5), modifier = Modifier.size(28.dp))
                 Spacer(modifier = Modifier.width(16.dp))
                 if (value.isEmpty()) {
-                    Text("Enter $label", color = Color(0xFF3F3F46), fontSize = 24.sp, fontWeight = FontWeight.Medium)
+                    Text("Enter $label", color = Color(0xFF606065), fontSize = 24.sp, fontWeight = FontWeight.Normal)
                 } else {
-                    Text(value, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text(value, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }

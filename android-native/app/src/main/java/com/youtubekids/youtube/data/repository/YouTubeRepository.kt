@@ -17,7 +17,8 @@ class YouTubeRepository @Inject constructor(
     private val api: YouTubeApi,
     private val json: Json
 ) {
-    private val baseUrl = "https://www.youtube.com"
+    private val domain = "https://www.youtube.com"
+    private val credentialUrl = "$domain/?gl=US&hl=en"
     private val headers = mapOf(
         "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language" to "en-US,en;q=0.9",
@@ -41,13 +42,14 @@ class YouTubeRepository @Inject constructor(
 
         try {
             Log.d(TAG, "Initializing InnerTube credentials...")
-            val response = api.getRequest(baseUrl, headers)
+            val response = api.getRequest(credentialUrl, headers)
             if (response.isSuccessful) {
                 val html = response.body()?.string() ?: ""
                 
-                cachedApiKey = Regex(""""INNERTUBE_API_KEY":"(.+?)""""").find(html)?.groupValues?.get(1)
-                cachedClientVersion = Regex(""""clientVersion":"([\d.]+)""""").find(html)?.groupValues?.get(1) ?: "2.20240101.01.00"
-                cachedVisitorData = Regex(""""visitorData":"(.+?)""""").find(html)?.groupValues?.get(1)
+                // More robust regexes to handle varying YouTube naming conventions
+                cachedApiKey = Regex(""""(?:INNERTUBE_API_KEY|apiKey)":"(.+?)"""").find(html)?.groupValues?.get(1)
+                cachedClientVersion = Regex(""""clientVersion":"([\d.]+)"""").find(html)?.groupValues?.get(1) ?: "2.20240101.01.00"
+                cachedVisitorData = Regex(""""visitorData":"(.+?)"""").find(html)?.groupValues?.get(1)
                 
                 Log.d(TAG, "API Key: ${cachedApiKey?.take(8)}..., Version: $cachedClientVersion, Visitor: ${cachedVisitorData?.take(8)}...")
             } else {
@@ -126,13 +128,13 @@ class YouTubeRepository @Inject constructor(
             Log.e(TAG, "browse($browseId): No API key available")
             return@withContext emptyList()
         }
-        val apiUrl = "$baseUrl/youtubei/v1/browse?key=$apiKey"
+        val apiUrl = "$domain/youtubei/v1/browse?key=$apiKey"
 
         val body = buildJsonObject {
             putJsonObject("context") {
                 putJsonObject("client") {
                     put("clientName", "WEB")
-                    put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
+                    put("clientVersion", cachedClientVersion ?: "2.20260101.01.00")
                     cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
@@ -143,9 +145,10 @@ class YouTubeRepository @Inject constructor(
             val response = api.postRequest(apiUrl, headers + ("Content-Type" to "application/json"), body)
             if (response.isSuccessful) {
                 val data = response.body() ?: return@withContext emptyList()
-                val videos = extractVideosDeep(data)
-                Log.d(TAG, "browse($browseId): Got ${videos.size} videos")
-                return@withContext videos
+                val videos = parseBrowseResults(data)
+                val finalVideos = if (videos.isNotEmpty()) videos else extractVideosDeep(data)
+                Log.d(TAG, "browse($browseId): Got ${finalVideos.size} videos")
+                return@withContext finalVideos
             } else {
                 Log.e(TAG, "browse($browseId) HTTP ${response.code()}")
             }
@@ -155,19 +158,39 @@ class YouTubeRepository @Inject constructor(
         emptyList()
     }
 
+    private fun parseBrowseResults(json: JsonObject): List<Video> {
+        val videos = mutableListOf<Video>()
+        try {
+            val tabs = json["contents"]?.jsonObject?.get("twoColumnBrowseResultsRenderer")?.jsonObject?.get("tabs")?.jsonArray
+            val firstTabContent = tabs?.get(0)?.jsonObject?.get("tabRenderer")?.jsonObject?.get("content")?.jsonObject
+            val richGridContents = firstTabContent?.get("richGridRenderer")?.jsonObject?.get("contents")?.jsonArray
+            
+            richGridContents?.forEach { item ->
+                item.jsonObject["richItemRenderer"]?.jsonObject?.get("content")?.jsonObject?.let { content ->
+                    content["videoRenderer"]?.jsonObject?.let { renderer ->
+                        mapVideoRenderer(renderer)?.let { videos.add(it) }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "parseBrowseResults error", e)
+        }
+        return videos
+    }
+
     suspend fun search(query: String): List<Video> = withContext(Dispatchers.IO) {
         ensureCredentials()
         val apiKey = cachedApiKey ?: run {
             Log.e(TAG, "search($query): No API key available")
             return@withContext emptyList()
         }
-        val apiUrl = "$baseUrl/youtubei/v1/search?key=$apiKey"
+        val apiUrl = "$domain/youtubei/v1/search?key=$apiKey"
 
         val body = buildJsonObject {
             putJsonObject("context") {
                 putJsonObject("client") {
                     put("clientName", "WEB")
-                    put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
+                    put("clientVersion", cachedClientVersion ?: "2.20260101.01.00")
                     cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
@@ -178,9 +201,10 @@ class YouTubeRepository @Inject constructor(
             val response = api.postRequest(apiUrl, headers + ("Content-Type" to "application/json"), body)
             if (response.isSuccessful) {
                 val data = response.body() ?: return@withContext emptyList()
-                val videos = extractVideosDeep(data)
-                Log.d(TAG, "search($query): Got ${videos.size} videos")
-                return@withContext videos
+                val videos = parseSearchResults(data)
+                val finalVideos = if (videos.isNotEmpty()) videos else extractVideosDeep(data)
+                Log.d(TAG, "search($query): Got ${finalVideos.size} videos")
+                return@withContext finalVideos
             } else {
                 Log.e(TAG, "search($query) HTTP ${response.code()}")
             }
@@ -190,16 +214,35 @@ class YouTubeRepository @Inject constructor(
         emptyList()
     }
 
+    private fun parseSearchResults(json: JsonObject): List<Video> {
+        val videos = mutableListOf<Video>()
+        try {
+            val contents = json["contents"]?.jsonObject?.get("twoColumnSearchResultsRenderer")?.jsonObject
+                ?.get("primaryContents")?.jsonObject?.get("sectionListRenderer")?.jsonObject?.get("contents")?.jsonArray
+            
+            contents?.forEach { section ->
+                section.jsonObject["itemSectionRenderer"]?.jsonObject?.get("contents")?.jsonArray?.forEach { item ->
+                    item.jsonObject["videoRenderer"]?.jsonObject?.let { renderer ->
+                        mapVideoRenderer(renderer)?.let { videos.add(it) }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "parseSearchResults error", e)
+        }
+        return videos
+    }
+
     suspend fun getVideoDetails(videoId: String): Video? = withContext(Dispatchers.IO) {
         ensureCredentials()
         val apiKey = cachedApiKey ?: return@withContext null
-        val apiUrl = "$baseUrl/youtubei/v1/player?key=$apiKey"
+        val apiUrl = "$domain/youtubei/v1/player?key=$apiKey"
 
         val body = buildJsonObject {
             putJsonObject("context") {
                 putJsonObject("client") {
                     put("clientName", "WEB")
-                    put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
+                    put("clientVersion", cachedClientVersion ?: "2.20260101.01.00")
                     cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
@@ -243,13 +286,13 @@ class YouTubeRepository @Inject constructor(
     suspend fun getUpNext(videoId: String): List<Video> = withContext(Dispatchers.IO) {
         ensureCredentials()
         val apiKey = cachedApiKey ?: return@withContext emptyList()
-        val apiUrl = "$baseUrl/youtubei/v1/next?key=$apiKey"
+        val apiUrl = "$domain/youtubei/v1/next?key=$apiKey"
 
         val body = buildJsonObject {
             putJsonObject("context") {
                 putJsonObject("client") {
                     put("clientName", "WEB")
-                    put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
+                    put("clientVersion", cachedClientVersion ?: "2.20260101.01.00")
                     cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
@@ -548,13 +591,13 @@ class YouTubeRepository @Inject constructor(
     suspend fun getComments(videoId: String): List<Comment> = withContext(Dispatchers.IO) {
         ensureCredentials()
         val apiKey = cachedApiKey ?: return@withContext fallbackComments(videoId)
-        val apiUrl = "$baseUrl/youtubei/v1/next?key=$apiKey"
+        val apiUrl = "$domain/youtubei/v1/next?key=$apiKey"
 
         val body = buildJsonObject {
             putJsonObject("context") {
                 putJsonObject("client") {
                     put("clientName", "WEB")
-                    put("clientVersion", cachedClientVersion ?: "2.20240101.01.00")
+                    put("clientVersion", cachedClientVersion ?: "2.20260101.01.00")
                     cachedVisitorData?.let { put("visitorData", it) }
                 }
             }
@@ -657,11 +700,18 @@ class YouTubeRepository @Inject constructor(
         val seen = mutableSetOf<String>()
 
         fun visit(node: JsonElement, depth: Int) {
-            if (depth > 8 || videos.size >= maxResults) return
+            if (depth > 12 || videos.size >= maxResults) return // Increased depth for shelfRenderers
 
             when (node) {
                 is JsonObject -> {
-                    val renderer = node["videoRenderer"] ?: node["compactVideoRenderer"] ?: node["gridVideoRenderer"] ?: node["reelItemRenderer"]
+                    // Check if this node IS a renderer or CONTAINS a renderer
+                    val renderer = node["videoRenderer"] 
+                        ?: node["compactVideoRenderer"] 
+                        ?: node["gridVideoRenderer"] 
+                        ?: node["reelItemRenderer"]
+                        ?: node["richItemRenderer"]?.jsonObject?.get("content")?.jsonObject?.get("videoRenderer")
+                        ?: node["richItemRenderer"]?.jsonObject?.get("content")?.jsonObject?.get("reelItemRenderer")
+                    
                     if (renderer is JsonObject) {
                         val videoId = renderer["videoId"]?.jsonPrimitive?.content
                         if (videoId != null && !seen.contains(videoId)) {
@@ -670,10 +720,10 @@ class YouTubeRepository @Inject constructor(
                             if (videos.size >= maxResults) return
                         }
                     }
-                    node.entries.take(30).forEach { (_, value) -> visit(value, depth + 1) }
+                    node.entries.take(40).forEach { (_, value) -> visit(value, depth + 1) }
                 }
                 is JsonArray -> {
-                    node.take(40).forEach { visit(it, depth + 1) }
+                    node.take(50).forEach { visit(it, depth + 1) }
                 }
                 else -> {}
             }
@@ -730,9 +780,11 @@ class YouTubeRepository @Inject constructor(
             ClientConfig("ANDROID_TESTSUITE", "1.9.3", "com.google.android.youtube.testsuite/1.9.3 (Linux; U; Android 12; en_US) gzip", "ANDROID_TESTSUITE"),
             ClientConfig("ANDROID_MUSIC", "6.45.54", "com.google.android.apps.youtube.music/6.45.54 (Linux; U; Android 14; en_US) gzip", "ANDROID_MUSIC"),
             ClientConfig("MWEB", "2.20240501.00.00", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1", "MWEB"),
+            ClientConfig("IOS", "19.10.1", "com.google.ios.youtube/19.10.1 (iPhone15,3; U; CPU iOS 17_4_1 like Mac OS X; en_US)", "IOS"),
             ClientConfig("ANDROID_VR", "1.60.19", "com.google.android.youtube.vr/1.60.19 (Linux; U; Android 12; en_US) gzip", "ANDROID_VR"),
             ClientConfig("ANDROID_KIDS", "4.10.2", "com.google.android.youtube.kids/4.10.2 (Linux; U; Android 12; en_US) gzip", "ANDROID_KIDS"),
-            ClientConfig("IOS_KIDS", "4.10.2", "com.google.ios.youtube.kids/4.10.2 (iPhone; CPU iPhone OS 15_0 like Mac OS X; en_US) gzip", "IOS_KIDS")
+            ClientConfig("IOS_KIDS", "4.10.2", "com.google.ios.youtube.kids/4.10.2 (iPhone; CPU iPhone OS 15_0 like Mac OS X; en_US) gzip", "IOS_KIDS"),
+            ClientConfig("WEB_KIDS", "1.20240722.01.00", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "WEB_KIDS")
         )
 
         for (client in clients) {
@@ -749,7 +801,7 @@ class YouTubeRepository @Inject constructor(
                 put("videoId", videoId)
                 putJsonObject("playbackContext") {
                     putJsonObject("contentPlaybackContext") {
-                        put("signatureTimestamp", 20124) // Updated high-quality signature
+                        put("signatureTimestamp", 20641) // Updated high-quality signature from youtube.ts
                     }
                 }
                 put("racyCheckOk", true)
@@ -765,7 +817,10 @@ class YouTubeRepository @Inject constructor(
                     val data = response.body() ?: continue
                     if (data["playabilityStatus"]?.jsonObject?.get("status")?.jsonPrimitive?.content == "OK") {
                         val streamingData = data["streamingData"]?.jsonObject ?: continue
-                        extractStream(streamingData)?.let { return@withContext it }
+                        extractStream(streamingData)?.let { 
+                            Log.d(TAG, "Found stream using client: ${client.name} (${if (it.adaptive) "Adaptive" else "Progressive"})")
+                            return@withContext it 
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -787,14 +842,19 @@ class YouTubeRepository @Inject constructor(
         val formats = streamingData["formats"]?.jsonArray ?: JsonArray(emptyList())
         val muxedFormats = formats.mapNotNull { it as? JsonObject }
             .filter { f ->
-                f["url"] != null &&
-                f["mimeType"]?.jsonPrimitive?.content?.contains("video/mp4") == true &&
-                f["width"] != null && f["height"] != null
+                val hasUrl = f["url"]?.jsonPrimitive?.content != null
+                val hasNoSignature = f["signatureCipher"] == null
+                val isMp4 = f["mimeType"]?.jsonPrimitive?.content?.contains("video/mp4") == true
+                val hasWidth = f["width"] != null
+                val hasHeight = f["height"] != null
+                hasUrl && hasNoSignature && isMp4 && hasWidth && hasHeight
             }
             .sortedWith(compareByDescending<JsonObject> { 
-                (it["width"]?.jsonPrimitive?.int ?: 0) * (it["height"]?.jsonPrimitive?.int ?: 0)
+                val w = it["width"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+                val h = it["height"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+                w * h
             }.thenByDescending { 
-                it["bitrate"]?.jsonPrimitive?.long ?: 0L
+                it["bitrate"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
             })
 
         muxedFormats.firstOrNull()?.let {
@@ -803,9 +863,12 @@ class YouTubeRepository @Inject constructor(
 
         val fallbackFormats = (formats + (streamingData["adaptiveFormats"]?.jsonArray ?: JsonArray(emptyList()))).mapNotNull { it as? JsonObject }
         val anyPlayable = fallbackFormats.find { f ->
-            f["url"] != null &&
-            f["mimeType"]?.jsonPrimitive?.content?.startsWith("video/") == true &&
-            f["width"] != null && f["height"] != null
+            val hasUrl = f["url"]?.jsonPrimitive?.content != null
+            val hasNoSignature = f["signatureCipher"] == null
+            val isVideo = f["mimeType"]?.jsonPrimitive?.content?.startsWith("video/") == true
+            val hasWidth = f["width"] != null
+            val hasHeight = f["height"] != null
+            hasUrl && hasNoSignature && isVideo && hasWidth && hasHeight
         }
 
         anyPlayable?.let {

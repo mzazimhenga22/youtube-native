@@ -43,7 +43,7 @@ fun MoviesScreen(
     LaunchedEffect(Unit) {
         isLoading = true
         try {
-            val featured = repository.search("New Movies 2024 Full Length")
+            val featured = repository.getMoviesHome()
             val action = repository.search("Popular Action Movies 4K")
             val scifi = repository.search("Sci-Fi movies full length")
 

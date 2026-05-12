@@ -33,6 +33,11 @@ import com.youtubekids.youtube.ui.theme.YouTubeTVTheme
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusRestorer
 import kotlinx.coroutines.delay
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -70,6 +75,10 @@ class MainActivity : ComponentActivity() {
         val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
+        
+        val contentFocusRequester = remember { FocusRequester() }
+        val leftSidebarFocusRequester = remember { FocusRequester() }
+        val rightSidebarFocusRequester = remember { FocusRequester() }
 
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -115,250 +124,261 @@ class MainActivity : ComponentActivity() {
                 // sidebars + header float on top as overlays
                 Box(modifier = Modifier.fillMaxSize()) {
                     // ── Layer 1: Full-width content ──
-                    NavHost(
-                        navController = navController,
-                        startDestination = if (currentProfile?.mode == "kids") "kids-home" else "home",
-                        modifier = Modifier.fillMaxSize()
+                    // Wrap NavHost in a focusable Box to manage entry/exit focus properly
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .focusRequester(contentFocusRequester)
+                            .focusProperties {
+                                left = leftSidebarFocusRequester
+                                right = rightSidebarFocusRequester
+                            }
+                            .focusRestorer()
+                            .focusGroup()
                     ) {
-                            composable("home") {
-                                HomeScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    repository = repository
-                                )
-                            }
-                            composable("kids-home") {
-                                KidsHomeScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("kids-player")
-                                    },
-                                    repository = repository
-                                )
-                            }
-                            composable("music") {
-                                MusicScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    repository = repository
-                                )
-                            }
-                            composable("movies") {
-                                MoviesScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    repository = repository
-                                )
-                            }
-                            composable("subscriptions") {
-                                SubscriptionsScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    repository = repository
-                                )
-                            }
-                            composable("multiview") {
-                                MultiviewScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    repository = repository
-                                )
-                            }
-                            composable("search") {
-                                SearchScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    repository = repository
-                                )
-                            }
-                            composable("ask") {
-                                AskScreen(onSearch = { query ->
-                                    navController.navigate("search")
-                                })
-                            }
-                            composable("library") {
-                                LibraryScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    onCategoryClick = { categoryId ->
-                                        navController.navigate("category/$categoryId")
-                                    }
-                                )
-                            }
-                            composable("category/{categoryId}") { backStackEntry ->
-                                val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
-                                val videos by when(categoryId) {
-                                    "liked" -> viewModel.likedVideos.collectAsState()
-                                    "watch-later" -> viewModel.watchLater.collectAsState()
-                                    else -> viewModel.watchHistory.collectAsState()
-                                }
-                                val title = when(categoryId) {
-                                    "liked" -> "Liked Videos"
-                                    "watch-later" -> "Watch Later"
-                                    "history" -> "History"
-                                    "downloads" -> "Downloads"
-                                    else -> "Playlists"
-                                }
-                                CategoryScreen(
-                                    title = title,
-                                    videos = videos,
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    onBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable("live") {
-                                LiveGuideScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    repository = repository
-                                )
-                            }
-                            composable("shorts") {
-                                ShortsScreen(
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("shorts-player")
-                                    },
-                                    repository = repository
-                                )
-                            }
-                            composable("shorts-player") {
-                                val video by viewModel.globalVideo.collectAsState()
-                                video?.let {
-                                    ShortsPlayerScreen(
-                                        initialVideo = it,
-                                        repository = repository,
-                                        exoPlayer = exoPlayer,
-                                        onClose = { navController.popBackStack() }
+                        NavHost(
+                            navController = navController,
+                            startDestination = if (currentProfile?.mode == "kids") "kids-home" else "home",
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                                composable("home") {
+                                    HomeScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        repository = repository
                                     )
                                 }
-                            }
-                            composable("channel/{channelId}/{channelName}/{channelAvatar}") { backStackEntry ->
-                                val channelId = backStackEntry.arguments?.getString("channelId") ?: ""
-                                val channelName = backStackEntry.arguments?.getString("channelName") ?: ""
-                                val channelAvatar = backStackEntry.arguments?.getString("channelAvatar") ?: ""
-                                ChannelScreen(
-                                    channelId = channelId,
-                                    channelName = channelName,
-                                    channelAvatar = channelAvatar,
-                                    repository = repository,
-                                    onVideoClick = { video ->
-                                        viewModel.setGlobalPlayback(video, null)
-                                        navController.navigate("player")
-                                    },
-                                    onBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable("player") {
-                                val video by viewModel.globalVideo.collectAsState()
-                                video?.let {
-                                    VideoPlayerScreen(
-                                        video = it,
-                                        repository = repository,
-                                        exoPlayer = exoPlayer,
-                                        onClose = { navController.popBackStack() }
+                                composable("kids-home") {
+                                    KidsHomeScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        repository = repository
                                     )
                                 }
-                            }
-                            composable("kids-player") {
-                                val video by viewModel.globalVideo.collectAsState()
-                                video?.let {
-                                    KidsVideoPlayerScreen(
-                                        video = it,
-                                        repository = repository,
-                                        exoPlayer = exoPlayer,
-                                        onClose = { navController.popBackStack() }
+                                composable("music") {
+                                    MusicScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        repository = repository
                                     )
                                 }
-                            }
-                            composable("settings") {
-                                SettingsScreen(
-                                    onLogout = { 
-                                        viewModel.logout()
-                                    },
-                                    onBack = { navController.popBackStack() }
-                                )
-                            }
-                        }
-
-                        // ── Layer 2: Floating Header (top) ──
-                        if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-home" && currentRoute != "search") {
-                            Box(modifier = Modifier.align(Alignment.TopCenter)) {
-                                FloatingHeader(
-                                    currentProfile = currentProfile,
-                                    currentRoute = currentRoute,
-                                    onSearchClick = { navController.navigate("search") },
-                                    onProfileClick = { navController.navigate("settings") }
-                                )
-                            }
-                        }
-
-                        // ── Layer 3: Left Sidebar (floating, far left) ──
-                        if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-home") {
-                            Sidebar(
-                                side = "left",
-                                selectedRoute = currentRoute ?: "home",
-                                currentProfile = currentProfile,
-                                onNavigate = { route ->
-                                    navController.navigate(route) {
-                                        popUpTo("home") { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
+                                composable("movies") {
+                                    MoviesScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        repository = repository
+                                    )
+                                }
+                                composable("subscriptions") {
+                                    SubscriptionsScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        repository = repository
+                                    )
+                                }
+                                composable("multiview") {
+                                    MultiviewScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        repository = repository
+                                    )
+                                }
+                                composable("search") {
+                                    SearchScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        repository = repository
+                                    )
+                                }
+                                composable("ask") {
+                                    AskScreen(onSearch = { query ->
+                                        navController.navigate("search")
+                                    })
+                                }
+                                composable("library") {
+                                    LibraryScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        onCategoryClick = { categoryId ->
+                                            navController.navigate("category/$categoryId")
+                                        }
+                                    )
+                                }
+                                composable("category/{categoryId}") { backStackEntry ->
+                                    val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
+                                    val videos by when(categoryId) {
+                                        "liked" -> viewModel.likedVideos.collectAsState()
+                                        "watch-later" -> viewModel.watchLater.collectAsState()
+                                        else -> viewModel.watchHistory.collectAsState()
                                     }
-                                },
-                                modifier = Modifier.align(Alignment.CenterStart)
-                            )
-                        }
-
-                        // ── Layer 4: Right Sidebar (floating, far right) ──
-                        if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-home") {
-                            Sidebar(
-                                side = "right",
-                                selectedRoute = currentRoute ?: "home",
-                                onNavigate = { route ->
-                                    navController.navigate(route) {
-                                        popUpTo("home") { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
+                                    val title = when(categoryId) {
+                                        "liked" -> "Liked Videos"
+                                        "watch-later" -> "Watch Later"
+                                        "history" -> "History"
+                                        "downloads" -> "Downloads"
+                                        else -> "Playlists"
                                     }
-                                },
-                                modifier = Modifier.align(Alignment.CenterEnd)
-                            )
-                        }
-
-                        // ── Layer 5: MiniPlayer (bottom) ──
-                        if (globalVideo != null && currentRoute != "player") {
-                            Box(modifier = Modifier.align(Alignment.BottomCenter)) {
-                                MiniPlayer(
-                                    video = globalVideo,
-                                    isPlaying = isGlobalPlaying,
-                                    progress = globalProgress,
-                                    onTogglePlay = { viewModel.setGlobalPlayback(globalVideo, null, !isGlobalPlaying) },
-                                    onOpenFull = { navController.navigate("player") },
-                                    onClose = { viewModel.setGlobalPlayback(null, null) }
-                                )
-                            }
+                                    CategoryScreen(
+                                        title = title,
+                                        videos = videos,
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        onBack = { navController.popBackStack() }
+                                    )
+                                }
+                                composable("live") {
+                                    LiveGuideScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        repository = repository
+                                    )
+                                }
+                                composable("shorts") {
+                                    ShortsScreen(
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("shorts-player")
+                                        },
+                                        repository = repository
+                                    )
+                                }
+                                composable("shorts-player") {
+                                    val video by viewModel.globalVideo.collectAsState()
+                                    video?.let {
+                                        ShortsPlayerScreen(
+                                            initialVideo = it,
+                                            repository = repository,
+                                            exoPlayer = exoPlayer,
+                                            onClose = { 
+                                                viewModel.setGlobalPlayback(null, null)
+                                                navController.popBackStack() 
+                                            }
+                                        )
+                                    }
+                                }
+                                composable("channel/{channelId}/{channelName}/{channelAvatar}") { backStackEntry ->
+                                    val channelId = backStackEntry.arguments?.getString("channelId") ?: ""
+                                    val channelName = backStackEntry.arguments?.getString("channelName") ?: ""
+                                    val channelAvatar = backStackEntry.arguments?.getString("channelAvatar") ?: ""
+                                    ChannelScreen(
+                                        channelId = channelId,
+                                        channelName = channelName,
+                                        channelAvatar = channelAvatar,
+                                        repository = repository,
+                                        onVideoClick = { video ->
+                                            viewModel.setGlobalPlayback(video, null)
+                                            navController.navigate("player")
+                                        },
+                                        onBack = { navController.popBackStack() }
+                                    )
+                                }
+                                composable("player") {
+                                    val video by viewModel.globalVideo.collectAsState()
+                                    video?.let {
+                                        VideoPlayerScreen(
+                                            video = it,
+                                            repository = repository,
+                                            exoPlayer = exoPlayer,
+                                            onClose = { navController.popBackStack() }
+                                        )
+                                    }
+                                }
+                                composable("settings") {
+                                    SettingsScreen(
+                                        onLogout = { 
+                                            viewModel.logout()
+                                        },
+                                        onBack = { navController.popBackStack() }
+                                    )
+                                }
                         }
                     }
+
+                    // ── Layer 2: Floating Header (top) ──
+                    if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home" && currentRoute != "search") {
+                        Box(modifier = Modifier.align(Alignment.TopCenter)) {
+                            FloatingHeader(
+                                currentProfile = currentProfile,
+                                currentRoute = currentRoute,
+                                onSearchClick = { navController.navigate("search") },
+                                onProfileClick = { navController.navigate("settings") }
+                            )
+                        }
+                    }
+
+                    // ── Layer 3: Left Sidebar (floating, far left) ──
+                    if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home") {
+                        Sidebar(
+                            side = "left",
+                            selectedRoute = currentRoute ?: "home",
+                            currentProfile = currentProfile,
+                            onNavigate = { route ->
+                                navController.navigate(route) {
+                                    popUpTo("home") { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .focusRequester(leftSidebarFocusRequester)
+                                .focusProperties { right = contentFocusRequester }
+                        )
+                    }
+
+                    // ── Layer 4: Right Sidebar (floating, far right) ──
+                    if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home") {
+                        Sidebar(
+                            side = "right",
+                            selectedRoute = currentRoute ?: "home",
+                            onNavigate = { route ->
+                                navController.navigate(route) {
+                                    popUpTo("home") { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .focusRequester(rightSidebarFocusRequester)
+                                .focusProperties { left = contentFocusRequester }
+                        )
+                    }
+
+                    // ── Layer 5: MiniPlayer (bottom) ──
+                    if (globalVideo != null && currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home") {
+                        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                            MiniPlayer(
+                                video = globalVideo,
+                                isPlaying = isGlobalPlaying,
+                                progress = globalProgress,
+                                onTogglePlay = { viewModel.setGlobalPlayback(globalVideo, null, !isGlobalPlaying) },
+                                onOpenFull = { navController.navigate("player") },
+                                onClose = { viewModel.setGlobalPlayback(null, null) }
+                            )
+                        }
+                    }
+                }
                 }
 
                 if (isIdle && watchHistory.isNotEmpty()) {
@@ -366,6 +386,5 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
     }
 }

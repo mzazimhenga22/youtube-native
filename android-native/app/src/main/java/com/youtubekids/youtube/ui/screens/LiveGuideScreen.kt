@@ -30,8 +30,9 @@ import androidx.tv.material3.*
 import coil.compose.AsyncImage
 import com.youtubekids.youtube.data.model.Video
 import com.youtubekids.youtube.data.repository.YouTubeRepository
+import com.youtubekids.youtube.ui.components.LiveCard
 
-data class LiveCategory(val label: String, val icon: ImageVector)
+data class LiveCategory(val label: String, val icon: ImageVector, val color: Color)
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -44,16 +45,17 @@ fun LiveGuideScreen(
     var isLoading by remember { mutableStateOf(true) }
 
     val categories = listOf(
-        LiveCategory("All", Icons.Default.Tv),
-        LiveCategory("News", Icons.Default.Public),
-        LiveCategory("Sports", Icons.Default.EmojiEvents),
-        LiveCategory("Gaming", Icons.Default.Gamepad)
+        LiveCategory("All Live", Icons.Default.Tv, Color.Red),
+        LiveCategory("News", Icons.Default.Public, Color(0xFF00AAFF)),
+        LiveCategory("Sports", Icons.Default.EmojiEvents, Color(0xFFFFCC00)),
+        LiveCategory("Gaming", Icons.Default.Gamepad, Color(0xFF00FF99)),
+        LiveCategory("Music", Icons.Default.MusicNote, Color(0xFFFF00FF))
     )
 
     LaunchedEffect(Unit) {
         isLoading = true
         try {
-            channels = repository.getLiveChannels()
+            channels = repository.getLiveGuide()
             if (channels.isNotEmpty()) focusedVideo = channels[0]
         } finally {
             isLoading = false
@@ -66,9 +68,9 @@ fun LiveGuideScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 100.dp)
+            contentPadding = PaddingValues(top = 72.dp, bottom = 120.dp)
         ) {
-            // 2. Borderless Live Hero
+            // 2. Live Hero
             item {
                 LiveHero(
                     video = focusedVideo,
@@ -79,37 +81,41 @@ fun LiveGuideScreen(
             // 3. Category Navigation
             item {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 48.dp, vertical = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    contentPadding = PaddingValues(horizontal = 80.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(categories) { category ->
                         var isFocused by remember { mutableStateOf(false) }
                         Surface(
-                            onClick = { /* TODO */ },
-                            modifier = Modifier.wrapContentSize().onFocusChanged { isFocused = it.isFocused },
-                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
-                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                            onClick = { /* TODO: Implement category filtering */ },
+                            modifier = Modifier
+                                .height(40.dp)
+                                .onFocusChanged { isFocused = it.isFocused },
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
                             colors = ClickableSurfaceDefaults.colors(
-                                containerColor = Color.White.copy(alpha = 0.05f),
+                                containerColor = Color.White.copy(alpha = 0.06f),
                                 focusedContainerColor = Color.White
                             )
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .padding(horizontal = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
                                     category.icon,
                                     contentDescription = null,
-                                    tint = if (isFocused) Color.Black else Color.White,
-                                    modifier = Modifier.size(22.dp)
+                                    tint = if (isFocused) category.color else category.color.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(18.dp)
                                 )
                                 Text(
                                     text = category.label,
                                     color = if (isFocused) Color.Black else Color.White,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Black
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
@@ -120,7 +126,7 @@ fun LiveGuideScreen(
             // 4. Rails
             item {
                 LiveRail(
-                    title = "Currently Live",
+                    title = "Featured Live Streams",
                     videos = channels,
                     onVideoClick = onVideoClick,
                     onVideoFocus = { focusedVideo = it }
@@ -129,8 +135,8 @@ fun LiveGuideScreen(
 
             item {
                 LiveRail(
-                    title = "Trending Streams",
-                    videos = channels.reversed(),
+                    title = "Breaking News",
+                    videos = channels.shuffled().take(6),
                     onVideoClick = onVideoClick,
                     onVideoFocus = { focusedVideo = it }
                 )
@@ -144,23 +150,23 @@ fun LiveAmbientBackground(focusedVideo: Video?) {
     val infiniteTransition = rememberInfiniteTransition(label = "livePulse")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.05f,
-        targetValue = 0.15f,
+        targetValue = 0.12f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000),
+            animation = tween(3000),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulse"
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Red Glow
+        // Subtle Red Glow
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .alpha(pulseAlpha)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Red.copy(alpha = 0.15f), Color.Transparent, Color.Red.copy(alpha = 0.05f))
+                        colors = listOf(Color.Red.copy(alpha = 0.1f), Color.Transparent, Color.Red.copy(alpha = 0.05f))
                     )
                 )
         )
@@ -178,14 +184,18 @@ fun LiveAmbientBackground(focusedVideo: Video?) {
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        alpha = 0.4f
+                        alpha = 0.35f
                     )
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
                                 Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color(0xFF050505).copy(alpha = 0.6f), Color(0xFF050505))
+                                    colors = listOf(
+                                        Color(0xFF050505).copy(alpha = 0.3f),
+                                        Color(0xFF050505).copy(alpha = 0.7f),
+                                        Color(0xFF050505)
+                                    )
                                 )
                             )
                     )
@@ -204,120 +214,106 @@ fun LiveHero(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(600.dp)
-            .padding(horizontal = 48.dp),
+            .padding(start = 80.dp, end = 80.dp, top = 20.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.Center
     ) {
         video?.let {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(
                     modifier = Modifier
-                        .background(Color.Red, RoundedCornerShape(12.dp))
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .background(Color.Red, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Radio, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Default.Radio, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             "LIVE NOW",
                             color = Color.White,
-                            fontSize = 16.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
-                            letterSpacing = 2.sp
+                            letterSpacing = 1.5.sp
                         )
                     }
                 }
                 
-                Box(
-                    modifier = Modifier
-                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Groups, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = it.views,
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = it.title,
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontWeight = FontWeight.Black,
-                    lineHeight = 78.sp,
-                    letterSpacing = (-3).sp
-                ),
-                color = Color.White,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width(900.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Box(
-                modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-            ) {
                 Text(
-                    text = it.channel,
-                    color = Color.LightGray,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "${it.views} watching",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            Text(
+                text = it.title,
+                color = Color.White,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Black,
+                lineHeight = 42.sp,
+                letterSpacing = (-1.5).sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 600.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box(
+                modifier = Modifier
+                    .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 12.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text = it.channel,
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(
                     onClick = onWatchClick,
-                    modifier = Modifier.height(72.dp),
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                    modifier = Modifier.height(48.dp),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
                     colors = ClickableSurfaceDefaults.colors(
                         containerColor = Color.White,
                         focusedContainerColor = Color.Red
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 48.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                        modifier = Modifier.fillMaxHeight().padding(horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(32.dp))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text("Watch Live", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(22.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Watch Live", color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 
                 Surface(
                     onClick = { /* TODO */ },
-                    modifier = Modifier.height(72.dp),
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                    modifier = Modifier.height(48.dp),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
                     colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.White.copy(alpha = 0.1f),
+                        containerColor = Color.White.copy(alpha = 0.08f),
                         focusedContainerColor = Color.White.copy(alpha = 0.2f)
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 40.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                        modifier = Modifier.fillMaxHeight().padding(horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.SignalCellularAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text("Full Guide", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                        Icon(Icons.Default.SignalCellularAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Full Guide", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -333,110 +329,28 @@ fun LiveRail(
     onVideoClick: (Video) -> Unit,
     onVideoFocus: (Video) -> Unit
 ) {
-    Column(modifier = Modifier.padding(bottom = 56.dp)) {
+    if (videos.isEmpty()) return
+
+    Column(modifier = Modifier.padding(vertical = 16.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineMedium,
             color = Color.White,
-            fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(start = 48.dp, bottom = 16.dp)
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.3).sp,
+            modifier = Modifier.padding(start = 80.dp, bottom = 12.dp)
         )
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 48.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
+            contentPadding = PaddingValues(horizontal = 80.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(videos) { video ->
-                var isFocused by remember { mutableStateOf(false) }
-                Surface(
+                LiveCard(
+                    video = video,
                     onClick = { onVideoClick(video) },
-                    modifier = Modifier
-                        .width(440.dp)
-                        .aspectRatio(16/9f)
-                        .onFocusChanged { 
-                            isFocused = it.isFocused
-                            if (it.isFocused) onVideoFocus(video) 
-                        },
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(40.dp)),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
-                    border = ClickableSurfaceDefaults.border(focusedBorder = Border(androidx.compose.foundation.BorderStroke(4.dp, Color.White)))
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        AsyncImage(
-                            model = video.thumbnail,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))))
-                        )
-                        
-                        // Live Badge
-                        Box(
-                            modifier = Modifier
-                                .padding(24.dp)
-                                .align(Alignment.TopStart)
-                                .background(Color.Red, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 16.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.SignalCellularAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("LIVE", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-                            }
-                        }
-
-                        // Viewers Badge
-                        Box(
-                            modifier = Modifier
-                                .padding(24.dp)
-                                .align(Alignment.BottomEnd)
-                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 16.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Groups, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(video.views, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        if (isFocused) {
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .align(Alignment.Center)
-                                    .background(Color.White.copy(alpha = 0.9f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp).padding(start = 4.dp))
-                            }
-                        }
-                    }
-                }
-                
-                // Title and Channel under the card
-                Column(modifier = Modifier.padding(top = 20.dp, start = 12.dp)) {
-                    Text(
-                        text = video.title,
-                        color = if (isFocused) Color.White else Color.LightGray,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(416.dp)
-                    )
-                    Text(
-                        text = video.channel,
-                        color = Color.Gray,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                    onFocus = { onVideoFocus(video) }
+                )
             }
         }
     }
 }
-

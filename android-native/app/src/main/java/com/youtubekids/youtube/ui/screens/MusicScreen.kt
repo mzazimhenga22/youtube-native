@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,7 +50,7 @@ fun MusicScreen(
     val categories = listOf(
         MusicCategory("My Mix", Icons.Default.Shuffle, Color(0xFFFF0055)),
         MusicCategory("For You", Icons.Default.AutoAwesome, Color(0xFF7700FF)),
-        MusicCategory("Trending", Icons.Default.TrendingUp, Color(0xFF00FF99)),
+        MusicCategory("Trending", Icons.AutoMirrored.Filled.TrendingUp, Color(0xFF00FF99)),
         MusicCategory("New Releases", Icons.Default.Album, Color(0xFF00AAFF)),
         MusicCategory("Live", Icons.Default.Radio, Color(0xFFFF9900))
     )
@@ -57,9 +58,9 @@ fun MusicScreen(
     LaunchedEffect(Unit) {
         isLoading = true
         try {
-            homeMusic = repository.search("Official Music Videos")
-            trendingMusic = repository.search("Trending music")
-            relaxMusic = repository.search("Lofi hip hop relax")
+            homeMusic = repository.getMusicHome()
+            trendingMusic = repository.search("Trending music Kenya")
+            relaxMusic = repository.search("Lofi hip hop relax chill")
             if (homeMusic.isNotEmpty()) focusedVideo = homeMusic[0]
         } finally {
             isLoading = false

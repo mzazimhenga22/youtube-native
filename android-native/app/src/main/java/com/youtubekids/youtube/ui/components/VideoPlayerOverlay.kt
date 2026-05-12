@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +38,8 @@ fun VideoPlayerOverlay(
     onToggleLyrics: () -> Unit,
     onToggleStats: () -> Unit,
     onSetSpeed: (Float) -> Unit,
+    onToggleLiked: () -> Unit = {},
+    onToggleWatchLater: () -> Unit = {},
     currentSpeed: Float = 1.0f,
     currentChapter: String? = null,
     onClose: () -> Unit,
@@ -141,7 +144,7 @@ fun VideoPlayerOverlay(
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Icon(
-                                Icons.Default.ArrowBack,
+                                Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
                                 tint = LocalContentColor.current,
                                 modifier = Modifier.size(20.dp)
@@ -321,15 +324,20 @@ fun VideoPlayerOverlay(
                     ) {
                         // Left: social actions
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OverlayButton(icon = Icons.Default.ThumbUp, label = "Like") { interactionKey++ }
-                            OverlayButton(icon = Icons.Default.ThumbDown, label = "Dislike") { interactionKey++ }
-                            OverlayButton(icon = Icons.Default.Comment, label = "Comments") {
-                                onToggleComments(); interactionKey++
-                            }
-                            OverlayButton(icon = Icons.Default.MusicNote, label = "Lyrics") {
-                                onToggleLyrics(); interactionKey++
-                            }
-
+                        OverlayButton(icon = Icons.Default.ThumbUp, label = "Like") { 
+                            onToggleLiked()
+                            interactionKey++ 
+                        }
+                        OverlayButton(icon = Icons.Default.WatchLater, label = "Watch Later") { 
+                            onToggleWatchLater()
+                            interactionKey++ 
+                        }
+                        OverlayButton(icon = Icons.AutoMirrored.Filled.Comment, label = "Comments") {
+                            onToggleComments(); interactionKey++
+                        }
+                        OverlayButton(icon = Icons.Default.MusicNote, label = "Lyrics") {
+                            onToggleLyrics(); interactionKey++
+                        }
                             // Speed toggle
                             Surface(
                                 onClick = {
