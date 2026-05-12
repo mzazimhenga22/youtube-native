@@ -64,8 +64,31 @@ class YouTubeRepository @Inject constructor(
     suspend fun getMusicHome(): List<Video> = browse("FEmusic_home")
     suspend fun getMoviesHome(): List<Video> = browse("FEmovies_home")
     suspend fun getSubscriptionsHome(): List<Video> = browse("FEsubscriptions")
-    suspend fun getShorts(): List<Video> = browse("FEshorts")
-    suspend fun getLiveGuide(): List<Video> = browse("FElive_guide")
+    suspend fun getShorts(): List<Video> = withContext(Dispatchers.IO) {
+        coroutineScope {
+            try {
+                val queries = listOf(
+                    "#shorts trending",
+                    "viral shorts",
+                    "funny shorts videos",
+                    "shorts compilation"
+                )
+                val deferredResults = queries.map { query ->
+                    async { search(query) }
+                }
+                val results = deferredResults.awaitAll()
+                results.flatten()
+                    .distinctBy { it.id }
+                    .shuffled()
+                    .take(30)
+            } catch (e: Exception) {
+                Log.e(TAG, "getShorts failed", e)
+                emptyList()
+            }
+        }
+    }
+
+    suspend fun getLiveGuide(): List<Video> = getLiveChannels()
 
     suspend fun getKidsHome(): List<Video> = withContext(Dispatchers.IO) {
         coroutineScope {
@@ -161,14 +184,50 @@ class YouTubeRepository @Inject constructor(
     private fun parseBrowseResults(json: JsonObject): List<Video> {
         val videos = mutableListOf<Video>()
         try {
+            // Try two-column layout first (standard home/browse)
             val tabs = json["contents"]?.jsonObject?.get("twoColumnBrowseResultsRenderer")?.jsonObject?.get("tabs")?.jsonArray
-            val firstTabContent = tabs?.get(0)?.jsonObject?.get("tabRenderer")?.jsonObject?.get("content")?.jsonObject
-            val richGridContents = firstTabContent?.get("richGridRenderer")?.jsonObject?.get("contents")?.jsonArray
+                ?: json["contents"]?.jsonObject?.get("singleColumnBrowseResultsRenderer")?.jsonObject?.get("tabs")?.jsonArray
             
+            val firstTabContent = tabs?.get(0)?.jsonObject?.get("tabRenderer")?.jsonObject?.get("content")?.jsonObject
+            
+            // Rich grid (home page)
+            val richGridContents = firstTabContent?.get("richGridRenderer")?.jsonObject?.get("contents")?.jsonArray
             richGridContents?.forEach { item ->
                 item.jsonObject["richItemRenderer"]?.jsonObject?.get("content")?.jsonObject?.let { content ->
+                    // Standard video
                     content["videoRenderer"]?.jsonObject?.let { renderer ->
                         mapVideoRenderer(renderer)?.let { videos.add(it) }
+                    }
+                    // Shorts / Reels
+                    content["reelItemRenderer"]?.jsonObject?.let { renderer ->
+                        mapVideoRenderer(renderer)?.let { videos.add(it) }
+                    }
+                }
+                // Rich section (groups of videos in shelves)
+                item.jsonObject["richSectionRenderer"]?.jsonObject?.get("content")?.jsonObject?.let { sectionContent ->
+                    sectionContent["richShelfRenderer"]?.jsonObject?.get("contents")?.jsonArray?.forEach { shelfItem ->
+                        shelfItem.jsonObject["richItemRenderer"]?.jsonObject?.get("content")?.jsonObject?.let { content ->
+                            content["videoRenderer"]?.jsonObject?.let { r -> mapVideoRenderer(r)?.let { videos.add(it) } }
+                            content["reelItemRenderer"]?.jsonObject?.let { r -> mapVideoRenderer(r)?.let { videos.add(it) } }
+                        }
+                    }
+                }
+            }
+            
+            // Section list (used by music, movies, subscriptions)
+            val sectionListContents = firstTabContent?.get("sectionListRenderer")?.jsonObject?.get("contents")?.jsonArray
+            sectionListContents?.forEach { section ->
+                section.jsonObject["itemSectionRenderer"]?.jsonObject?.get("contents")?.jsonArray?.forEach { item ->
+                    item.jsonObject["videoRenderer"]?.jsonObject?.let { r -> mapVideoRenderer(r)?.let { videos.add(it) } }
+                    item.jsonObject["compactVideoRenderer"]?.jsonObject?.let { r -> mapVideoRenderer(r)?.let { videos.add(it) } }
+                    item.jsonObject["gridVideoRenderer"]?.jsonObject?.let { r -> mapVideoRenderer(r)?.let { videos.add(it) } }
+                    // Shelf with horizontal list
+                    item.jsonObject["shelfRenderer"]?.jsonObject?.get("content")?.jsonObject?.let { shelfContent ->
+                        shelfContent["horizontalListRenderer"]?.jsonObject?.get("items")?.jsonArray?.forEach { shelfItem ->
+                            shelfItem.jsonObject["gridVideoRenderer"]?.jsonObject?.let { r -> mapVideoRenderer(r)?.let { videos.add(it) } }
+                            shelfItem.jsonObject["videoRenderer"]?.jsonObject?.let { r -> mapVideoRenderer(r)?.let { videos.add(it) } }
+                            shelfItem.jsonObject["compactVideoRenderer"]?.jsonObject?.let { r -> mapVideoRenderer(r)?.let { videos.add(it) } }
+                        }
                     }
                 }
             }
@@ -736,27 +795,46 @@ class YouTubeRepository @Inject constructor(
     private fun mapVideoRenderer(renderer: JsonObject): Video? {
         val videoId = renderer["videoId"]?.jsonPrimitive?.content ?: return null
         
+        // Title: try runs first, then headline (for reelItemRenderer/shorts), then simpleText, then accessibility
         val title = renderer["title"]?.jsonObject?.get("runs")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content
             ?: renderer["headline"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.content
+            ?: renderer["headline"]?.jsonObject?.get("runs")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content
             ?: renderer["title"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.content
+            ?: renderer["title"]?.jsonObject?.get("accessibility")?.jsonObject?.get("accessibilityData")?.jsonObject?.get("label")?.jsonPrimitive?.content
             ?: ""
             
         val channel = renderer["longBylineText"]?.jsonObject?.get("runs")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content
             ?: renderer["shortBylineText"]?.jsonObject?.get("runs")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content
             ?: renderer["ownerText"]?.jsonObject?.get("runs")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content
+            ?: renderer["shortBylineText"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.content
             ?: ""
 
         val views = renderer["viewCountText"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.content
+            ?: renderer["viewCountText"]?.jsonObject?.get("runs")?.jsonArray?.joinToString("") { 
+                it.jsonObject["text"]?.jsonPrimitive?.content ?: "" 
+            }?.takeIf { it.isNotEmpty() }
             ?: renderer["shortViewCountText"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.content
+            ?: renderer["shortViewCountText"]?.jsonObject?.get("runs")?.jsonArray?.joinToString("") {
+                it.jsonObject["text"]?.jsonPrimitive?.content ?: ""
+            }?.takeIf { it.isNotEmpty() }
             ?: ""
 
-        val duration = renderer["lengthText"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.content ?: ""
+        val duration = renderer["lengthText"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.content
+            ?: renderer["lengthText"]?.jsonObject?.get("accessibility")?.jsonObject?.get("accessibilityData")?.jsonObject?.get("label")?.jsonPrimitive?.content
+            ?: ""
         
         val thumbnails = renderer["thumbnail"]?.jsonObject?.get("thumbnails")?.jsonArray
-        val thumbnail = thumbnails?.get(thumbnails.size - 1)?.jsonObject?.get("url")?.jsonPrimitive?.content ?: ""
+        val thumbnail = if (thumbnails != null && thumbnails.isNotEmpty()) {
+            thumbnails[thumbnails.size - 1].jsonObject["url"]?.jsonPrimitive?.content ?: ""
+        } else {
+            "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+        }
 
         val publishedAt = renderer["publishedTimeText"]?.jsonObject?.get("simpleText")?.jsonPrimitive?.content
             ?: renderer["publishedTimeText"]?.jsonObject?.get("runs")?.jsonArray?.get(0)?.jsonObject?.get("text")?.jsonPrimitive?.content
+
+        // Skip entries with empty titles
+        if (title.isEmpty()) return null
 
         return Video(
             id = videoId,
@@ -772,19 +850,25 @@ class YouTubeRepository @Inject constructor(
     suspend fun getStream(videoId: String): StreamResult? = withContext(Dispatchers.IO) {
         ensureCredentials()
         val apiKey = cachedApiKey ?: return@withContext null
-        val apiUrl = "https://www.youtube.com/youtubei/v1/player?key=$apiKey&prettyPrint=false"
 
+        // Ordered by reliability for getting direct playable URLs
         val clients = listOf(
-            ClientConfig("TVHTML5", "7.20260312.16.00", "Mozilla/5.0 (SmartTV; Google TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36", "TVHTML5"),
-            ClientConfig("WEB_EMBEDDED", "1.20240722.01.00", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "WEB_EMBEDDED_PLAYER"),
-            ClientConfig("ANDROID_TESTSUITE", "1.9.3", "com.google.android.youtube.testsuite/1.9.3 (Linux; U; Android 12; en_US) gzip", "ANDROID_TESTSUITE"),
+            // IOS client provides direct URLs without signature ciphers
+            ClientConfig("IOS", "19.29.1", "com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X; en_US)", "IOS"),
+            // TV client often returns HLS
+            ClientConfig("TVHTML5_SIMPLY_EMBEDDED", "2.0", "Mozilla/5.0 (SmartTV; Google TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36", "TVHTML5_SIMPLY_EMBEDDED_PLAYER"),
+            // Android clients tend to return direct URLs
+            ClientConfig("ANDROID", "19.29.37", "com.google.android.youtube/19.29.37 (Linux; U; Android 14; en_US) gzip", "ANDROID"),
             ClientConfig("ANDROID_MUSIC", "6.45.54", "com.google.android.apps.youtube.music/6.45.54 (Linux; U; Android 14; en_US) gzip", "ANDROID_MUSIC"),
-            ClientConfig("MWEB", "2.20240501.00.00", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1", "MWEB"),
-            ClientConfig("IOS", "19.10.1", "com.google.ios.youtube/19.10.1 (iPhone15,3; U; CPU iOS 17_4_1 like Mac OS X; en_US)", "IOS"),
             ClientConfig("ANDROID_VR", "1.60.19", "com.google.android.youtube.vr/1.60.19 (Linux; U; Android 12; en_US) gzip", "ANDROID_VR"),
+            ClientConfig("ANDROID_TESTSUITE", "1.9.3", "com.google.android.youtube.testsuite/1.9.3 (Linux; U; Android 12; en_US) gzip", "ANDROID_TESTSUITE"),
+            // Web embedded can sometimes work
+            ClientConfig("WEB_EMBEDDED", "1.20240722.01.00", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "WEB_EMBEDDED_PLAYER"),
+            // MWEB
+            ClientConfig("MWEB", "2.20240501.00.00", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1", "MWEB"),
+            // Kids clients for broader coverage
             ClientConfig("ANDROID_KIDS", "4.10.2", "com.google.android.youtube.kids/4.10.2 (Linux; U; Android 12; en_US) gzip", "ANDROID_KIDS"),
-            ClientConfig("IOS_KIDS", "4.10.2", "com.google.ios.youtube.kids/4.10.2 (iPhone; CPU iPhone OS 15_0 like Mac OS X; en_US) gzip", "IOS_KIDS"),
-            ClientConfig("WEB_KIDS", "1.20240722.01.00", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "WEB_KIDS")
+            ClientConfig("IOS_KIDS", "4.10.2", "com.google.ios.youtube.kids/4.10.2 (iPhone; CPU iPhone OS 15_0 like Mac OS X; en_US) gzip", "IOS_KIDS")
         )
 
         for (client in clients) {
@@ -801,7 +885,7 @@ class YouTubeRepository @Inject constructor(
                 put("videoId", videoId)
                 putJsonObject("playbackContext") {
                     putJsonObject("contentPlaybackContext") {
-                        put("signatureTimestamp", 20641) // Updated high-quality signature from youtube.ts
+                        put("signatureTimestamp", 20641)
                     }
                 }
                 put("racyCheckOk", true)
@@ -812,69 +896,115 @@ class YouTubeRepository @Inject constructor(
                 val headersWithUserAgent = (headers + ("Content-Type" to "application/json")).toMutableMap().apply {
                     put("User-Agent", client.userAgent)
                 }
-                val response = api.postRequest(apiUrl, headersWithUserAgent, body)
+                val response = api.postRequest("$domain/youtubei/v1/player?key=$apiKey&prettyPrint=false", headersWithUserAgent, body)
                 if (response.isSuccessful) {
                     val data = response.body() ?: continue
-                    if (data["playabilityStatus"]?.jsonObject?.get("status")?.jsonPrimitive?.content == "OK") {
-                        val streamingData = data["streamingData"]?.jsonObject ?: continue
-                        extractStream(streamingData)?.let { 
-                            Log.d(TAG, "Found stream using client: ${client.name} (${if (it.adaptive) "Adaptive" else "Progressive"})")
-                            return@withContext it 
+                    val status = data["playabilityStatus"]?.jsonObject
+                    val playStatus = status?.get("status")?.jsonPrimitive?.content
+                    val reason = status?.get("reason")?.jsonPrimitive?.content
+
+                    if (playStatus == "OK") {
+                        val streamingData = data["streamingData"]?.jsonObject
+                        if (streamingData != null) {
+                            extractStream(streamingData)?.let {
+                                Log.d(TAG, "getStream($videoId): Found stream via ${client.name} (${if (it.adaptive) "Adaptive" else "Progressive"})")
+                                return@withContext it
+                            }
+                            Log.d(TAG, "getStream($videoId): ${client.name} had streamingData but no extractable stream")
+                        } else {
+                            Log.d(TAG, "getStream($videoId): ${client.name} status=OK but no streamingData")
                         }
+                    } else {
+                        Log.d(TAG, "getStream($videoId): ${client.name} status=$playStatus reason=$reason")
                     }
+                } else {
+                    Log.d(TAG, "getStream($videoId): ${client.name} HTTP ${response.code()}")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "getStream($videoId): ${client.name} exception: ${e.message}")
             }
         }
+        Log.e(TAG, "getStream($videoId): All clients exhausted, no stream found")
         null
     }
 
     private fun extractStream(streamingData: JsonObject): StreamResult? {
+        // Priority 1: HLS manifest (best for live and general playback)
         streamingData["hlsManifestUrl"]?.jsonPrimitive?.content?.let {
+            Log.d(TAG, "extractStream: Found HLS manifest")
             return StreamResult(it, "application/x-mpegURL", true)
         }
 
+        // Priority 2: DASH manifest
         streamingData["dashManifestUrl"]?.jsonPrimitive?.content?.let {
+            Log.d(TAG, "extractStream: Found DASH manifest")
             return StreamResult(it, "application/dash+xml", true)
         }
 
         val formats = streamingData["formats"]?.jsonArray ?: JsonArray(emptyList())
+        val adaptiveFormats = streamingData["adaptiveFormats"]?.jsonArray ?: JsonArray(emptyList())
+
+        // Priority 3: Muxed (progressive) formats with direct URL - these are the most reliable
         val muxedFormats = formats.mapNotNull { it as? JsonObject }
             .filter { f ->
-                val hasUrl = f["url"]?.jsonPrimitive?.content != null
+                val url = f["url"]?.jsonPrimitive?.content
                 val hasNoSignature = f["signatureCipher"] == null
-                val isMp4 = f["mimeType"]?.jsonPrimitive?.content?.contains("video/mp4") == true
-                val hasWidth = f["width"] != null
-                val hasHeight = f["height"] != null
-                hasUrl && hasNoSignature && isMp4 && hasWidth && hasHeight
+                val mimeType = f["mimeType"]?.jsonPrimitive?.content ?: ""
+                val isVideo = mimeType.startsWith("video/")
+                url != null && url.isNotEmpty() && hasNoSignature && isVideo
             }
-            .sortedWith(compareByDescending<JsonObject> { 
-                val w = it["width"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-                val h = it["height"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-                w * h
-            }.thenByDescending { 
-                it["bitrate"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
+            .sortedWith(compareByDescending<JsonObject> {
+                it["bitrate"]?.jsonPrimitive?.long ?: it["bitrate"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
             })
 
         muxedFormats.firstOrNull()?.let {
-            return StreamResult(it["url"]?.jsonPrimitive?.content ?: "", it["mimeType"]?.jsonPrimitive?.content ?: "", false)
+            val url = it["url"]?.jsonPrimitive?.content ?: ""
+            val mimeType = it["mimeType"]?.jsonPrimitive?.content ?: "video/mp4"
+            Log.d(TAG, "extractStream: Found muxed format, bitrate=${it["bitrate"]}, mime=$mimeType")
+            return StreamResult(url, mimeType, false)
         }
 
-        val fallbackFormats = (formats + (streamingData["adaptiveFormats"]?.jsonArray ?: JsonArray(emptyList()))).mapNotNull { it as? JsonObject }
-        val anyPlayable = fallbackFormats.find { f ->
-            val hasUrl = f["url"]?.jsonPrimitive?.content != null
-            val hasNoSignature = f["signatureCipher"] == null
-            val isVideo = f["mimeType"]?.jsonPrimitive?.content?.startsWith("video/") == true
-            val hasWidth = f["width"] != null
-            val hasHeight = f["height"] != null
-            hasUrl && hasNoSignature && isVideo && hasWidth && hasHeight
+        // Priority 4: Adaptive video formats (video-only, but ExoPlayer can handle these)
+        val adaptiveVideo = adaptiveFormats.mapNotNull { it as? JsonObject }
+            .filter { f ->
+                val url = f["url"]?.jsonPrimitive?.content
+                val hasNoSignature = f["signatureCipher"] == null
+                val mimeType = f["mimeType"]?.jsonPrimitive?.content ?: ""
+                val isVideo = mimeType.startsWith("video/")
+                url != null && url.isNotEmpty() && hasNoSignature && isVideo
+            }
+            .sortedWith(compareByDescending<JsonObject> {
+                it["bitrate"]?.jsonPrimitive?.long ?: it["bitrate"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
+            })
+
+        adaptiveVideo.firstOrNull()?.let {
+            val url = it["url"]?.jsonPrimitive?.content ?: ""
+            val mimeType = it["mimeType"]?.jsonPrimitive?.content ?: "video/mp4"
+            Log.d(TAG, "extractStream: Found adaptive video, bitrate=${it["bitrate"]}, mime=$mimeType")
+            return StreamResult(url, mimeType, true)
         }
 
-        anyPlayable?.let {
-            return StreamResult(it["url"]?.jsonPrimitive?.content ?: "", it["mimeType"]?.jsonPrimitive?.content ?: "", false)
+        // Priority 5: Audio-only fallback (for music content)
+        val adaptiveAudio = adaptiveFormats.mapNotNull { it as? JsonObject }
+            .filter { f ->
+                val url = f["url"]?.jsonPrimitive?.content
+                val hasNoSignature = f["signatureCipher"] == null
+                val mimeType = f["mimeType"]?.jsonPrimitive?.content ?: ""
+                val isAudio = mimeType.startsWith("audio/")
+                url != null && url.isNotEmpty() && hasNoSignature && isAudio
+            }
+            .sortedWith(compareByDescending<JsonObject> {
+                it["bitrate"]?.jsonPrimitive?.long ?: it["bitrate"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
+            })
+
+        adaptiveAudio.firstOrNull()?.let {
+            val url = it["url"]?.jsonPrimitive?.content ?: ""
+            val mimeType = it["mimeType"]?.jsonPrimitive?.content ?: "audio/mp4"
+            Log.d(TAG, "extractStream: Found audio-only fallback, mime=$mimeType")
+            return StreamResult(url, mimeType, true)
         }
 
+        Log.w(TAG, "extractStream: No playable stream found. formats=${formats.size}, adaptive=${adaptiveFormats.size}")
         return null
     }
 

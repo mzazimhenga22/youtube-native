@@ -22,7 +22,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "youtube_tv.db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides

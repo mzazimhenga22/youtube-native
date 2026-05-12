@@ -96,7 +96,11 @@ fun VideoPlayerScreen(
             
             val details = repository.getVideoDetails(currentVideo.id)
             if (details != null) {
-                currentVideo = details
+                // Preserve contentType and duration from original video when details don't provide them
+                currentVideo = details.copy(
+                    contentType = currentVideo.contentType,
+                    duration = if (details.duration.isEmpty()) currentVideo.duration else details.duration
+                )
             }
 
             val related = if (currentProfile?.mode == "kids") {
@@ -227,7 +231,7 @@ fun VideoPlayerScreen(
             )
         } else {
             when {
-                currentProfile?.mode == "kids" -> {
+                currentProfile?.mode == "kids" || currentVideo.contentType == "kids" -> {
                     KidsVideoPlayerOverlay(
                         title = currentVideo.title,
                         isPlaying = isPlaying,
@@ -245,7 +249,7 @@ fun VideoPlayerScreen(
                         }
                     )
                 }
-                currentVideo.duration == "" || currentVideo.isLive -> {
+                currentVideo.contentType == "music" -> {
                      MusicPlayerOverlay(
                         video = currentVideo,
                         isPlaying = isPlaying,

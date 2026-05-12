@@ -16,7 +16,8 @@ data class Video(
     val isLive: Boolean = false,
     val viewerCount: String? = null,
     val chapters: List<Chapter>? = null,
-    val description: String? = null
+    val description: String? = null,
+    val contentType: String = "video" // "video", "music", "shorts", "kids", "movie", "live"
 )
 
 @Serializable

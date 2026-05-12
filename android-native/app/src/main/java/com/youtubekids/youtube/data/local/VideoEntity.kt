@@ -1,5 +1,6 @@
 package com.youtubekids.youtube.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import com.youtubekids.youtube.data.model.Video
 
@@ -12,7 +13,9 @@ data class VideoEntity(
     val views: String,
     val thumbnail: String,
     val duration: String,
-    val publishedAt: String
+    val publishedAt: String,
+    @ColumnInfo(defaultValue = "video")
+    val contentType: String = "video" // "video", "music", "shorts", "kids", "movie", "live"
 )
 
 fun Video.toEntity(type: String): VideoEntity = VideoEntity(
@@ -23,7 +26,8 @@ fun Video.toEntity(type: String): VideoEntity = VideoEntity(
     thumbnail = thumbnail,
     duration = duration,
     publishedAt = publishedAt ?: "",
-    type = type
+    type = type,
+    contentType = contentType
 )
 
 fun VideoEntity.toVideo(): Video = Video(
@@ -33,5 +37,7 @@ fun VideoEntity.toVideo(): Video = Video(
     views = views,
     thumbnail = thumbnail,
     duration = duration,
-    publishedAt = publishedAt
+    publishedAt = publishedAt,
+    contentType = contentType
 )
+

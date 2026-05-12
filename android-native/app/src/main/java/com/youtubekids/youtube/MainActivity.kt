@@ -144,7 +144,8 @@ class MainActivity : ComponentActivity() {
                                 composable("home") {
                                     HomeScreen(
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
+                                            val tagged = video.copy(contentType = "video")
+                                            viewModel.setGlobalPlayback(tagged, null)
                                             navController.navigate("player")
                                         },
                                         repository = repository
@@ -153,8 +154,9 @@ class MainActivity : ComponentActivity() {
                                 composable("kids-home") {
                                     KidsHomeScreen(
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
-                                            navController.navigate("player")
+                                            val tagged = video.copy(contentType = "kids")
+                                            viewModel.setGlobalPlayback(tagged, null)
+                                            navController.navigate("kids-player")
                                         },
                                         repository = repository
                                     )
@@ -162,8 +164,9 @@ class MainActivity : ComponentActivity() {
                                 composable("music") {
                                     MusicScreen(
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
-                                            navController.navigate("player")
+                                            val tagged = video.copy(contentType = "music")
+                                            viewModel.setGlobalPlayback(tagged, null)
+                                            navController.navigate("music-player")
                                         },
                                         repository = repository
                                     )
@@ -171,7 +174,8 @@ class MainActivity : ComponentActivity() {
                                 composable("movies") {
                                     MoviesScreen(
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
+                                            val tagged = video.copy(contentType = "movie")
+                                            viewModel.setGlobalPlayback(tagged, null)
                                             navController.navigate("player")
                                         },
                                         repository = repository
@@ -180,7 +184,8 @@ class MainActivity : ComponentActivity() {
                                 composable("subscriptions") {
                                     SubscriptionsScreen(
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
+                                            val tagged = video.copy(contentType = "video")
+                                            viewModel.setGlobalPlayback(tagged, null)
                                             navController.navigate("player")
                                         },
                                         repository = repository
@@ -189,7 +194,8 @@ class MainActivity : ComponentActivity() {
                                 composable("multiview") {
                                     MultiviewScreen(
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
+                                            val tagged = video.copy(contentType = "video")
+                                            viewModel.setGlobalPlayback(tagged, null)
                                             navController.navigate("player")
                                         },
                                         repository = repository
@@ -198,7 +204,8 @@ class MainActivity : ComponentActivity() {
                                 composable("search") {
                                     SearchScreen(
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
+                                            val tagged = video.copy(contentType = "video")
+                                            viewModel.setGlobalPlayback(tagged, null)
                                             navController.navigate("player")
                                         },
                                         repository = repository
@@ -212,8 +219,14 @@ class MainActivity : ComponentActivity() {
                                 composable("library") {
                                     LibraryScreen(
                                         onVideoClick = { video ->
+                                            // Library preserves whatever contentType was saved
                                             viewModel.setGlobalPlayback(video, null)
-                                            navController.navigate("player")
+                                            when (video.contentType) {
+                                                "music" -> navController.navigate("music-player")
+                                                "shorts" -> navController.navigate("shorts-player")
+                                                "kids" -> navController.navigate("kids-player")
+                                                else -> navController.navigate("player")
+                                            }
                                         },
                                         onCategoryClick = { categoryId ->
                                             navController.navigate("category/$categoryId")
@@ -239,7 +252,12 @@ class MainActivity : ComponentActivity() {
                                         videos = videos,
                                         onVideoClick = { video ->
                                             viewModel.setGlobalPlayback(video, null)
-                                            navController.navigate("player")
+                                            when (video.contentType) {
+                                                "music" -> navController.navigate("music-player")
+                                                "shorts" -> navController.navigate("shorts-player")
+                                                "kids" -> navController.navigate("kids-player")
+                                                else -> navController.navigate("player")
+                                            }
                                         },
                                         onBack = { navController.popBackStack() }
                                     )
@@ -247,7 +265,8 @@ class MainActivity : ComponentActivity() {
                                 composable("live") {
                                     LiveGuideScreen(
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
+                                            val tagged = video.copy(contentType = "live")
+                                            viewModel.setGlobalPlayback(tagged, null)
                                             navController.navigate("player")
                                         },
                                         repository = repository
@@ -256,7 +275,8 @@ class MainActivity : ComponentActivity() {
                                 composable("shorts") {
                                     ShortsScreen(
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
+                                            val tagged = video.copy(contentType = "shorts")
+                                            viewModel.setGlobalPlayback(tagged, null)
                                             navController.navigate("shorts-player")
                                         },
                                         repository = repository
@@ -276,6 +296,31 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                 }
+                                composable("kids-player") {
+                                    val video by viewModel.globalVideo.collectAsState()
+                                    video?.let {
+                                        KidsVideoPlayerScreen(
+                                            video = it,
+                                            repository = repository,
+                                            exoPlayer = exoPlayer,
+                                            onClose = {
+                                                viewModel.setGlobalPlayback(null, null)
+                                                navController.popBackStack()
+                                            }
+                                        )
+                                    }
+                                }
+                                composable("music-player") {
+                                    val video by viewModel.globalVideo.collectAsState()
+                                    video?.let {
+                                        VideoPlayerScreen(
+                                            video = it,
+                                            repository = repository,
+                                            exoPlayer = exoPlayer,
+                                            onClose = { navController.popBackStack() }
+                                        )
+                                    }
+                                }
                                 composable("channel/{channelId}/{channelName}/{channelAvatar}") { backStackEntry ->
                                     val channelId = backStackEntry.arguments?.getString("channelId") ?: ""
                                     val channelName = backStackEntry.arguments?.getString("channelName") ?: ""
@@ -286,7 +331,8 @@ class MainActivity : ComponentActivity() {
                                         channelAvatar = channelAvatar,
                                         repository = repository,
                                         onVideoClick = { video ->
-                                            viewModel.setGlobalPlayback(video, null)
+                                            val tagged = video.copy(contentType = "video")
+                                            viewModel.setGlobalPlayback(tagged, null)
                                             navController.navigate("player")
                                         },
                                         onBack = { navController.popBackStack() }
@@ -315,7 +361,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // ── Layer 2: Floating Header (top) ──
-                    if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home" && currentRoute != "search") {
+                    if (currentRoute != "player" && currentRoute != "music-player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home" && currentRoute != "search") {
                         Box(modifier = Modifier.align(Alignment.TopCenter)) {
                             FloatingHeader(
                                 currentProfile = currentProfile,
@@ -327,7 +373,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // ── Layer 3: Left Sidebar (floating, far left) ──
-                    if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home") {
+                    if (currentRoute != "player" && currentRoute != "music-player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home") {
                         Sidebar(
                             side = "left",
                             selectedRoute = currentRoute ?: "home",
@@ -347,7 +393,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // ── Layer 4: Right Sidebar (floating, far right) ──
-                    if (currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home") {
+                    if (currentRoute != "player" && currentRoute != "music-player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home") {
                         Sidebar(
                             side = "right",
                             selectedRoute = currentRoute ?: "home",
@@ -366,7 +412,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // ── Layer 5: MiniPlayer (bottom) ──
-                    if (globalVideo != null && currentRoute != "player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home") {
+                    if (globalVideo != null && currentRoute != "player" && currentRoute != "music-player" && currentRoute != "shorts-player" && currentRoute != "kids-player" && currentRoute != "kids-home") {
                         Box(modifier = Modifier.align(Alignment.BottomCenter)) {
                             MiniPlayer(
                                 video = globalVideo,
