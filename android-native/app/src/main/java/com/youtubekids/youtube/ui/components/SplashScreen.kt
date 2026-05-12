@@ -31,192 +31,178 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
 fun SplashScreen(onFinish: () -> Unit) {
-    val logoScale = remember { Animatable(0.94f) }
-    val logoOpacity = remember { Animatable(0f) }
-    val flareOffset = remember { Animatable(-1000f) }
-    val flareOpacity = remember { Animatable(0f) }
-    val shimmerOffset = remember { Animatable(-200f) }
-    val progressWidth = remember { Animatable(0f) }
-    val bgGlowOpacity = remember { Animatable(0f) }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "glow")
-    val ambientGlow by infiniteTransition.animateFloat(
-        initialValue = 0.04f,
-        targetValue = 0.12f,
-        animationSpec = infiniteRepeatable(tween(2500), RepeatMode.Reverse),
-        label = "ambientGlow"
+    val infiniteTransition = rememberInfiniteTransition(label = "singularity")
+    
+    // Core pulse animation
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(tween(2000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "pulse"
+    )
+    
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(10000, easing = LinearEasing), RepeatMode.Restart),
+        label = "rotation"
     )
 
+    val coreAlpha = remember { Animatable(0f) }
+    val textAlpha = remember { Animatable(0f) }
+
     LaunchedEffect(Unit) {
-        // 1. Entrance
-        launch { logoScale.animateTo(1f, tween(1800, easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f))) }
-        launch { logoOpacity.animateTo(1f, tween(800)) }
-
-        // 2. Optical Flare
-        delay(400)
-        launch { flareOpacity.animateTo(0.5f, tween(600)) }
-        launch { flareOffset.animateTo(1000f, tween(1800, easing = FastOutSlowInEasing)) }
-        launch { delay(1000); flareOpacity.animateTo(0f, tween(1000)) }
-
-        // 3. Shimmer
-        delay(800)
-        launch { shimmerOffset.animateTo(300f, tween(1000, easing = LinearOutSlowInEasing)) }
-
-        // 4. Progress
-        delay(1300)
-        progressWidth.animateTo(1f, tween(1200, easing = FastOutSlowInEasing))
-
-        delay(800)
+        launch { coreAlpha.animateTo(1f, tween(1500)) }
+        launch { delay(1000); textAlpha.animateTo(1f, tween(1000)) }
+        delay(4500)
         onFinish()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF030303)),
+            .background(Color(0xFF020205)),
         contentAlignment = Alignment.Center
     ) {
-        // Background Ambient Glow
+        // 1. Cinematic Background Rays
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .alpha(ambientGlow)
+                .alpha(0.15f)
                 .background(
                     Brush.radialGradient(
                         colors = listOf(Color.Red.copy(alpha = 0.5f), Color.Transparent),
-                        center = Offset(0.5f, 0.75f)
+                        center = Offset(0.5f, 0.5f),
+                        radius = 1200f
                     )
                 )
         )
 
-        // 3D Grid Floor
+        // 2. Animated Singularity Core (Procedural UI)
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(300.dp)
-                .alpha(0.05f)
-                .graphicsLayer {
-                    rotationX = 70f
-                    cameraDistance = 8 * density
-                }
+                .size(400.dp)
+                .scale(pulseScale)
+                .alpha(coreAlpha.value),
+            contentAlignment = Alignment.Center
         ) {
+            // Ambient Outer Glow
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val gridStep = 40.dp.toPx()
-                for (x in -10..20) {
-                    drawLine(Color.White, Offset(x * gridStep, 0f), Offset(x * gridStep, size.height), 1f)
-                }
-                for (y in 0..15) {
-                    drawLine(Color.White, Offset(-size.width, y * gridStep), Offset(size.width * 2, y * gridStep), 1f)
-                }
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color.Red.copy(alpha = 0.2f), Color.Transparent)
+                    ),
+                    radius = size.width / 2
+                )
             }
-            Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black))))
-        }
 
-        // Optical Flare Layer
-        Box(
-            modifier = Modifier
-                .offset(x = flareOffset.value.dp)
-                .width(400.dp)
-                .height(40.dp)
-                .alpha(flareOpacity.value)
-                .rotate(12f)
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.4f), Color.Transparent)
-                    )
-                )
-        )
-
-        // Main Logo Group
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .scale(logoScale.value)
-                .alpha(logoOpacity.value)
-        ) {
-            Box {
-                // Main Logo
-                androidx.compose.foundation.Image(
-                    painter = painterResource(id = R.drawable.app_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(280.dp),
-                    contentScale = ContentScale.Fit
-                )
-
-                // Shimmer Overlay
-                Box(
+            // Rotating Energy Rings
+            repeat(3) { i ->
+                val ringRotation = (rotation * (i + 1) * 0.5f) % 360f
+                Canvas(
                     modifier = Modifier
-                        .matchParentSize()
-                        .padding(horizontal = 40.dp, vertical = 80.dp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .size(180.dp + (i * 40).dp)
+                        .rotate(ringRotation)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .offset(x = shimmerOffset.value.dp)
-                            .width(60.dp)
-                            .fillMaxHeight()
-                            .alpha(0.3f)
-                            .rotate(-20f)
-                            .background(
-                                Brush.horizontalGradient(
-                                    colors = listOf(Color.Transparent, Color.White, Color.Transparent)
-                                )
-                            )
+                    drawArc(
+                        color = Color.Red.copy(alpha = 0.3f - (i * 0.05f)),
+                        startAngle = 0f,
+                        sweepAngle = 120f,
+                        useCenter = false,
+                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                    drawArc(
+                        color = Color.Red.copy(alpha = 0.3f - (i * 0.05f)),
+                        startAngle = 180f,
+                        sweepAngle = 120f,
+                        useCenter = false,
+                        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
                     )
                 }
             }
 
-            // Floor Reflection
+            // Central Core Play Symbol (Procedural)
             Box(
                 modifier = Modifier
-                    .offset(y = (-40).dp)
-                    .scale(scaleX = 1f, scaleY = -0.5f)
-                    .alpha(0.1f)
+                    .size(80.dp)
+                    .background(Color.Red, CircleShape)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
             ) {
-                androidx.compose.foundation.Image(
-                    painter = painterResource(id = R.drawable.app_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(280.dp),
-                    contentScale = ContentScale.Fit
-                )
-                Box(modifier = Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black))))
+                androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                    val path = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(size.width * 0.25f, 0f)
+                        lineTo(size.width, size.height / 2)
+                        lineTo(size.width * 0.25f, size.height)
+                        close()
+                    }
+                    drawPath(path, Color.White)
+                }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            TypewriterText("made by mzazimhenga")
-        }
-
-        // Progress Loader
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 120.dp)
-                .width(180.dp)
-                .height(2.dp)
-                .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(1.dp))
-        ) {
+            
+            // Core Ripple
+            val rippleScale by infiniteTransition.animateFloat(
+                initialValue = 0.8f,
+                targetValue = 2.5f,
+                animationSpec = infiniteRepeatable(tween(3000, easing = LinearEasing), RepeatMode.Restart),
+                label = "ripple"
+            )
+            val rippleAlpha by infiniteTransition.animateFloat(
+                initialValue = 0.4f,
+                targetValue = 0f,
+                animationSpec = infiniteRepeatable(tween(3000, easing = LinearEasing), RepeatMode.Restart),
+                label = "rippleAlpha"
+            )
+            
             Box(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(progressWidth.value)
-                    .background(Color.Red, RoundedCornerShape(1.dp))
+                    .size(80.dp)
+                    .scale(rippleScale)
+                    .alpha(rippleAlpha)
+                    .border(1.5.dp, Color.Red, CircleShape)
             )
         }
 
-        // Vignette Overlay
-        Box(
+        // 3. Footer Content
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f)),
-                        center = Offset(0.5f, 0.5f)
-                    )
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 80.dp)
+                .alpha(textAlpha.value),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            TypewriterText("made by mzazimhenga")
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Minimalist Progress Line
+            val progressWidth = remember { Animatable(0f) }
+            LaunchedEffect(Unit) {
+                delay(1500)
+                progressWidth.animateTo(1f, tween(2000, easing = FastOutSlowInEasing))
+            }
+            
+            Box(
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(1.dp)
+                    .background(Color.White.copy(alpha = 0.05f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progressWidth.value)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color.Transparent, Color.Red, Color.Transparent)
+                            )
+                        )
                 )
-        )
+            }
+        }
     }
 }
 
@@ -224,28 +210,43 @@ fun SplashScreen(onFinish: () -> Unit) {
 fun TypewriterText(text: String) {
     var displayText by remember { mutableStateOf("") }
     LaunchedEffect(text) {
-        delay(2200)
+        delay(1200)
         text.forEachIndexed { index, _ ->
             displayText = text.substring(0, index + 1)
-            delay(35)
+            delay(50)
         }
     }
+    
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            displayText,
-            color = Color(0xFF71717A),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 4.sp
-        )
-        if (displayText.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .padding(start = 4.dp)
-                    .width(1.5.dp)
-                    .height(12.dp)
-                    .background(Color.Red)
+            text = displayText.uppercase(),
+            color = Color.White.copy(alpha = 0.6f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 6.sp,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = Shadow(
+                    color = Color.Red.copy(alpha = 0.3f),
+                    offset = Offset(0f, 0f),
+                    blurRadius = 10f
+                )
             )
-        }
+        )
+        
+        // Animated Cursor
+        val cursorAlpha by rememberInfiniteTransition(label = "").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
+            label = ""
+        )
+        
+        Box(
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .size(4.dp)
+                .alpha(cursorAlpha)
+                .background(Color.Red, CircleShape)
+        )
     }
 }

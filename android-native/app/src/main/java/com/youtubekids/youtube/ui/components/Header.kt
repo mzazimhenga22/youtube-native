@@ -35,47 +35,65 @@ fun FloatingHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 80.dp, vertical = 16.dp),
+            .padding(horizontal = 80.dp, vertical = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         // ─── Left Pod: Branding ───
         Surface(
             onClick = {},
-            modifier = Modifier.height(52.dp),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(26.dp)),
+            modifier = Modifier.height(56.dp),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(28.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color(0xFF0D0D0D).copy(alpha = 0.7f),
-                focusedContainerColor = Color(0xFF0D0D0D).copy(alpha = 0.85f)
+                containerColor = Color(0xFF0F0F0F).copy(alpha = 0.6f),
+                focusedContainerColor = Color(0xFF1F1F1F).copy(alpha = 0.8f)
             ),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
             border = ClickableSurfaceDefaults.border(
                 border = Border(
                     androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        Color.White.copy(alpha = 0.06f)
+                        Color.White.copy(alpha = 0.08f)
                     )
+                ),
+                focusedBorder = Border(
+                    androidx.compose.foundation.BorderStroke(
+                        2.dp,
+                        Color.White.copy(alpha = 0.2f)
+                    )
+                )
+            ),
+            glow = ClickableSurfaceDefaults.glow(
+                focusedGlow = Glow(
+                    elevationColor = Color.Red.copy(alpha = 0.15f),
+                    elevation = 20.dp
                 )
             )
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Logo play icon
+                // Logo play icon with 'aura'
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
-                        .background(Color.Red, RoundedCornerShape(8.dp)),
+                        .size(32.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color.Red, Color.Red.copy(alpha = 0.6f))
+                            ),
+                            shape = RoundedCornerShape(9.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    androidx.compose.foundation.Canvas(modifier = Modifier.size(11.dp)) {
+                    androidx.compose.foundation.Canvas(modifier = Modifier.size(12.dp)) {
                         val path = androidx.compose.ui.graphics.Path().apply {
-                            moveTo(size.width * 0.15f, 0f)
+                            moveTo(size.width * 0.2f, 0f)
                             lineTo(size.width, size.height / 2)
-                            lineTo(size.width * 0.15f, size.height)
+                            lineTo(size.width * 0.2f, size.height)
                             close()
                         }
                         drawPath(path, Color.White)
@@ -86,11 +104,11 @@ fun FloatingHeader(
                     text = "YouTube",
                     color = Color.White,
                     fontWeight = FontWeight.Black,
-                    fontSize = 20.sp,
-                    letterSpacing = (-0.8).sp
+                    fontSize = 22.sp,
+                    letterSpacing = (-1).sp
                 )
 
-                // Section badge
+                // Section badge with glow
                 val theme = when {
                     currentRoute?.contains("music") == true -> "Music" to Color(0xFFFF0055)
                     currentRoute?.contains("movies") == true -> "Movies" to Color(0xFFFF4444)
@@ -102,15 +120,16 @@ fun FloatingHeader(
                 theme?.let { (label, color) ->
                     Box(
                         modifier = Modifier
-                            .background(color.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                            .background(color.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+                            .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = label.uppercase(),
                             color = color,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 0.8.sp
+                            letterSpacing = 1.sp
                         )
                     }
                 }
@@ -120,17 +139,24 @@ fun FloatingHeader(
         // ─── Right Pod: Action Buttons ───
         Surface(
             onClick = {},
-            modifier = Modifier.height(52.dp),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(26.dp)),
+            modifier = Modifier.height(56.dp),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(28.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color(0xFF0D0D0D).copy(alpha = 0.7f),
-                focusedContainerColor = Color(0xFF0D0D0D).copy(alpha = 0.85f)
+                containerColor = Color(0xFF0F0F0F).copy(alpha = 0.6f),
+                focusedContainerColor = Color(0xFF1F1F1F).copy(alpha = 0.8f)
             ),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
             border = ClickableSurfaceDefaults.border(
                 border = Border(
                     androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        Color.White.copy(alpha = 0.06f)
+                        Color.White.copy(alpha = 0.08f)
+                    )
+                ),
+                focusedBorder = Border(
+                    androidx.compose.foundation.BorderStroke(
+                        2.dp,
+                        Color.White.copy(alpha = 0.2f)
                     )
                 )
             )
@@ -138,29 +164,35 @@ fun FloatingHeader(
             Row(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 HeaderButton(icon = Icons.Default.Search, onClick = onSearchClick)
                 HeaderButton(icon = Icons.Default.Mic, onClick = {})
                 HeaderButton(icon = Icons.Default.Notifications, onClick = {})
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-                // Profile avatar
+                // Profile avatar with 'aura' when focused
                 Surface(
                     onClick = onProfileClick,
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(38.dp),
                     shape = ClickableSurfaceDefaults.shape(CircleShape),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.25f),
                     colors = ClickableSurfaceDefaults.colors(
                         containerColor = Color(0xFF2A2A2A),
-                        focusedContainerColor = Color(0xFF3A3A3A)
+                        focusedContainerColor = Color.White
                     ),
                     border = ClickableSurfaceDefaults.border(
                         focusedBorder = Border(
                             androidx.compose.foundation.BorderStroke(2.dp, Color.White)
+                        )
+                    ),
+                    glow = ClickableSurfaceDefaults.glow(
+                        focusedGlow = Glow(
+                            elevationColor = Color.White.copy(alpha = 0.4f),
+                            elevation = 15.dp
                         )
                     )
                 ) {
@@ -176,8 +208,8 @@ fun FloatingHeader(
                             Icon(
                                 Icons.Default.Person,
                                 contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.size(18.dp)
+                                tint = if (androidx.tv.material3.LocalContentColor.current == Color.Black) Color.Black else Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }

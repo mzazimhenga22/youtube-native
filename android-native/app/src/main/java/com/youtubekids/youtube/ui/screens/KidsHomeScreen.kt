@@ -132,35 +132,59 @@ fun KidsHomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(100.dp)
-                    .padding(start = 20.dp, top = 24.dp, bottom = 24.dp),
+                    .width(110.dp)
+                    .padding(start = 24.dp, top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                sidebarItems.forEach { item ->
-                    KidsSidebarItem(
-                        item = item,
-                        isSelected = activeCategory == item.id,
-                        onClick = { activeCategory = item.id }
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Logout
-                Surface(
-                    onClick = { viewModel.logout() },
-                    modifier = Modifier.size(44.dp),
-                    shape = ClickableSurfaceDefaults.shape(CircleShape),
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.Red.copy(alpha = 0.5f),
-                        focusedContainerColor = Color.Red
-                    ),
-                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f)
+                // Glassmorphic background for sidebar
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(72.dp)
+                        .background(
+                            Color.White.copy(alpha = 0.05f),
+                            RoundedCornerShape(36.dp)
+                        )
+                        .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(36.dp))
+                        .padding(vertical = 20.dp),
+                    contentAlignment = Alignment.TopCenter
                 ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Logout, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        sidebarItems.forEach { item ->
+                            KidsSidebarItem(
+                                item = item,
+                                isSelected = activeCategory == item.id,
+                                onClick = { activeCategory = item.id }
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        // Logout with extra 'aura'
+                        Surface(
+                            onClick = { 
+                                viewModel.logout()
+                            },
+                            modifier = Modifier.size(52.dp),
+                            shape = ClickableSurfaceDefaults.shape(CircleShape),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = Color.Red.copy(alpha = 0.2f),
+                                focusedContainerColor = Color.Red
+                            ),
+                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
+                            glow = ClickableSurfaceDefaults.glow(
+                                focusedGlow = Glow(
+                                    elevationColor = Color.Red.copy(alpha = 0.4f),
+                                    elevation = 15.dp
+                                )
+                            )
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Logout, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                            }
+                        }
                     }
                 }
             }

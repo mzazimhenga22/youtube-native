@@ -67,9 +67,15 @@ fun Sidebar(
     )
 
     val bgAlpha by animateFloatAsState(
-        targetValue = if (isFocused) 0.92f else 0.55f,
-        animationSpec = tween(250),
+        targetValue = if (isFocused) 0.85f else 0.4f,
+        animationSpec = tween(300),
         label = "bgAlpha"
+    )
+
+    val shadowElevation by animateDpAsState(
+        targetValue = if (isFocused) 16.dp else 0.dp,
+        animationSpec = tween(300),
+        label = "shadow"
     )
 
     Box(
@@ -77,38 +83,54 @@ fun Sidebar(
             .fillMaxHeight()
             .width(width)
             .onFocusChanged { isFocused = it.hasFocus }
-            .padding(vertical = 80.dp, horizontal = 8.dp)
+            .padding(vertical = 40.dp, horizontal = 12.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    color = Color(0xFF0D0D0D).copy(alpha = bgAlpha),
-                    shape = RoundedCornerShape(28.dp)
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF1A1A1A).copy(alpha = bgAlpha),
+                            Color(0xFF0A0A0A).copy(alpha = bgAlpha + 0.1f)
+                        )
+                    ),
+                    shape = RoundedCornerShape(32.dp)
                 )
-                .padding(vertical = 16.dp, horizontal = 8.dp),
+                .border(
+                    1.dp,
+                    if (isFocused) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.05f),
+                    RoundedCornerShape(32.dp)
+                )
+                .padding(vertical = 24.dp, horizontal = 8.dp),
             horizontalAlignment = if (isFocused) Alignment.Start else Alignment.CenterHorizontally
         ) {
             // Profile Avatar (Left sidebar only)
             if (side == "left") {
                 Box(
                     modifier = Modifier
-                        .padding(bottom = 8.dp)
+                        .padding(bottom = 12.dp)
                         .then(if (isFocused) Modifier.padding(start = 12.dp) else Modifier),
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
                         onClick = { onNavigate("settings") },
-                        modifier = Modifier.size(44.dp),
+                        modifier = Modifier.size(48.dp),
                         shape = ClickableSurfaceDefaults.shape(CircleShape),
-                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
                         colors = ClickableSurfaceDefaults.colors(
                             containerColor = Color(0xFF2A2A2A),
-                            focusedContainerColor = Color(0xFF3A3A3A)
+                            focusedContainerColor = Color.White
                         ),
                         border = ClickableSurfaceDefaults.border(
                             focusedBorder = Border(
                                 androidx.compose.foundation.BorderStroke(2.dp, Color.White)
+                            )
+                        ),
+                        glow = ClickableSurfaceDefaults.glow(
+                            focusedGlow = Glow(
+                                elevationColor = Color.White.copy(alpha = 0.2f),
+                                elevation = 12.dp
                             )
                         )
                     ) {
@@ -124,8 +146,8 @@ fun Sidebar(
                                 Icon(
                                     Icons.Default.Person,
                                     contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.8f),
-                                    modifier = Modifier.size(22.dp)
+                                    tint = if (androidx.tv.material3.LocalContentColor.current == Color.Black) Color.Black else Color.White.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -135,32 +157,44 @@ fun Sidebar(
                 // Divider
                 Box(
                     modifier = Modifier
-                        .padding(vertical = 8.dp)
+                        .padding(vertical = 12.dp)
                         .then(if (isFocused) Modifier.padding(horizontal = 16.dp) else Modifier.padding(horizontal = 12.dp))
                         .fillMaxWidth()
                         .height(1.dp)
-                        .background(Color.White.copy(alpha = 0.08f))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color.Transparent, Color.White.copy(alpha = 0.1f), Color.Transparent)
+                            )
+                        )
                 )
             }
 
             // Navigation Items
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items.forEach { item ->
                     val isSelected = selectedRoute == item.route || (item.route == "home" && selectedRoute == "")
+                    var isItemFocused by remember { mutableStateOf(false) }
 
                     Surface(
                         onClick = { onNavigate(item.route) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
-                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
-                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+                            .height(52.dp)
+                            .onFocusChanged { isItemFocused = it.isFocused },
+                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
+                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
                         colors = ClickableSurfaceDefaults.colors(
-                            containerColor = if (isSelected) Color.White.copy(alpha = 0.12f) else Color.Transparent,
+                            containerColor = if (isSelected) Color.White.copy(alpha = 0.1f) else Color.Transparent,
                             focusedContainerColor = Color.White
+                        ),
+                        glow = ClickableSurfaceDefaults.glow(
+                            focusedGlow = Glow(
+                                elevationColor = Color.White.copy(alpha = 0.15f),
+                                elevation = 10.dp
+                            )
                         )
                     ) {
                         Row(
@@ -175,29 +209,41 @@ fun Sidebar(
                             if (side == "right" && isFocused) {
                                 Text(
                                     text = item.title,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.Black,
-                                    modifier = Modifier.padding(end = 12.dp),
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isItemFocused) Color.Black else Color.White,
+                                    modifier = Modifier.padding(end = 16.dp),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    letterSpacing = 0.5.sp
                                 )
                             }
 
-                            Icon(
-                                item.icon,
-                                contentDescription = item.title,
-                                modifier = Modifier.size(22.dp),
-                                tint = if (isSelected && !isFocused) Color.White
-                                       else if (isFocused) Color.Black
-                                       else Color.White.copy(alpha = 0.5f)
-                            )
+                            // Icon with aura when item is selected but not focused
+                            Box(contentAlignment = Alignment.Center) {
+                                if (isSelected && !isItemFocused) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                                    )
+                                }
+                                Icon(
+                                    item.icon,
+                                    contentDescription = item.title,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = if (isItemFocused) Color.Black
+                                           else if (isSelected) Color.White
+                                           else Color.White.copy(alpha = 0.4f)
+                                )
+                            }
 
                             if (side == "left" && isFocused) {
                                 Text(
                                     text = item.title,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.Black,
-                                    modifier = Modifier.padding(start = 12.dp),
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isItemFocused) Color.Black else Color.White,
+                                    modifier = Modifier.padding(start = 16.dp),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    letterSpacing = 0.5.sp
                                 )
                             }
                         }
