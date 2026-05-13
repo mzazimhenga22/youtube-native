@@ -1,0 +1,18 @@
+{
+  "name": "node_innertube_test",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "jintr": "^3.3.1",
+    "node-fetch": "^3.3.2",
+    "vm": "^0.1.0",
+    "youtubei.js": "^17.0.1"
+  }
+}

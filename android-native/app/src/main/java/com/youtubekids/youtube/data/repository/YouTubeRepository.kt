@@ -1,9 +1,11 @@
 package com.youtubekids.youtube.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.youtubekids.youtube.data.model.Chapter
 import com.youtubekids.youtube.data.model.Video
 import com.youtubekids.youtube.data.remote.YouTubeApi
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.log10
@@ -11,9 +13,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
+import com.maxrave.kotlinyoutubeextractor.YTExtractor
+import com.maxrave.kotlinyoutubeextractor.State
 
 @Singleton
 class YouTubeRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val api: YouTubeApi,
     private val json: Json
 ) {
@@ -848,6 +853,43 @@ class YouTubeRepository @Inject constructor(
     }
 
     suspend fun getStream(videoId: String): StreamResult? = withContext(Dispatchers.IO) {
+        Log.d(TAG, "getStream($videoId): Trying YTExtractor as primary method...")
+        try {
+            val yt = YTExtractor(con = context, CACHING = false, LOGGING = false, retryCount = 2)
+            yt.extract(videoId)
+            
+            if (yt.state == State.SUCCESS) {
+                val ytFiles = yt.getYTFiles()
+                
+                // Try to get a video file that also has audio (often itag 18 or 22)
+                val itagsToTry = listOf(22, 18, 137, 136, 135)
+                for (itag in itagsToTry) {
+                    val ytFile = ytFiles?.get(itag)
+                    if (ytFile != null && !ytFile.url.isNullOrEmpty()) {
+                        Log.d(TAG, "getStream($videoId): Found primary stream via YTExtractor (itag $itag)")
+                        return@withContext StreamResult(ytFile.url!!, "video/mp4", false)
+                    }
+                }
+                
+                // We'll just grab the first available video URL
+                if (ytFiles != null && ytFiles.size() > 0) {
+                   for (i in 0 until ytFiles.size()) {
+                       val file = ytFiles.valueAt(i)
+                       if (!file.url.isNullOrEmpty()) {
+                           Log.d(TAG, "getStream($videoId): Found primary stream via YTExtractor (first available)")
+                           return@withContext StreamResult(file.url!!, "video/mp4", false)
+                       }
+                   }
+                }
+            } else {
+                Log.e(TAG, "getStream($videoId): YTExtractor failed with state ${yt.state}, falling back to InnerTube clients...")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getStream($videoId): YTExtractor exception: ${e.message}, falling back to InnerTube clients...")
+        }
+
+        // --- Fallback to InnerTube clients ---
+        Log.d(TAG, "getStream($videoId): Using InnerTube clients as fallback")
         ensureCredentials()
         val apiKey = cachedApiKey ?: return@withContext null
 
@@ -907,7 +949,7 @@ class YouTubeRepository @Inject constructor(
                         val streamingData = data["streamingData"]?.jsonObject
                         if (streamingData != null) {
                             extractStream(streamingData)?.let {
-                                Log.d(TAG, "getStream($videoId): Found stream via ${client.name} (${if (it.adaptive) "Adaptive" else "Progressive"})")
+                                Log.d(TAG, "getStream($videoId): Found fallback stream via ${client.name} (${if (it.adaptive) "Adaptive" else "Progressive"})")
                                 return@withContext it
                             }
                             Log.d(TAG, "getStream($videoId): ${client.name} had streamingData but no extractable stream")
@@ -924,7 +966,8 @@ class YouTubeRepository @Inject constructor(
                 Log.e(TAG, "getStream($videoId): ${client.name} exception: ${e.message}")
             }
         }
-        Log.e(TAG, "getStream($videoId): All clients exhausted, no stream found")
+        
+        Log.e(TAG, "getStream($videoId): All methods exhausted, no stream found")
         null
     }
 

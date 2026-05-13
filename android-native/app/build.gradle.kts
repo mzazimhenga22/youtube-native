@@ -111,6 +111,9 @@ dependencies {
     // Image Loading
     implementation("io.coil-kt:coil-compose:2.5.0")
     
+    // YouTube Extractor
+    implementation("com.github.maxrave-dev:kotlin-youtubeExtractor:0.0.7")
+    
     // Icons
     implementation("androidx.compose.material:material-icons-extended")
 

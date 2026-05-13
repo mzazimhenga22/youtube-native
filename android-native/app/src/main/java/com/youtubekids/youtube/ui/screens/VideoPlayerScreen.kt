@@ -202,20 +202,59 @@ fun VideoPlayerScreen(
         }
     }
 
+    var isOverlayVisible by remember { mutableStateOf(true) }
+    var interactionKey by remember { mutableIntStateOf(0) }
+
+    // Auto-hide overlay
+    LaunchedEffect(isOverlayVisible, isPlaying, interactionKey) {
+        if (isOverlayVisible && isPlaying) {
+            delay(6000)
+            isOverlayVisible = false
+        }
+    }
+
+    val playerPaddingStart by animateDpAsState(targetValue = if (isOverlayVisible) 48.dp else 0.dp)
+    val playerPaddingTop by animateDpAsState(targetValue = if (isOverlayVisible) 48.dp else 0.dp)
+    val playerPaddingEnd by animateDpAsState(targetValue = if (isOverlayVisible) 400.dp else 0.dp)
+    val playerPaddingBottom by animateDpAsState(targetValue = if (isOverlayVisible) 300.dp else 0.dp)
+    val overlayBackgroundAlpha by animateFloatAsState(targetValue = if (isOverlayVisible) 0.95f else 0f)
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(
-            factory = {
-                PlayerView(context).apply {
-                    player = exoPlayer
-                    useController = false
-                    layoutParams = FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        // The Player
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    start = playerPaddingStart,
+                    top = playerPaddingTop,
+                    end = playerPaddingEnd,
+                    bottom = playerPaddingBottom
+                )
+                .clip(RoundedCornerShape(if (isOverlayVisible) 16.dp else 0.dp))
+        ) {
+            AndroidView(
+                factory = {
+                    PlayerView(context).apply {
+                        player = exoPlayer
+                        useController = false
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Overlay Background
+        if (overlayBackgroundAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF0F0F0F).copy(alpha = overlayBackgroundAlpha))
+            )
+        }
 
         if (isLoading) {
             SingularityLoader(transparent = true, ambientThumbnail = currentVideo.thumbnail)
@@ -269,7 +308,7 @@ fun VideoPlayerScreen(
                                 currentVideo = relatedVideos[0]
                             }
                         },
-                        onClose = onClose // Keeps MiniPlayer for music
+                        onClose = onClose
                     )
                 }
                 else -> {
@@ -279,28 +318,41 @@ fun VideoPlayerScreen(
                         progress = progress,
                         currentTime = currentTime,
                         duration = durationText,
+                        isVisible = isOverlayVisible,
+                        onVisibilityChange = { 
+                            isOverlayVisible = it
+                            if (it) interactionKey++
+                        },
+                        onUserInteraction = { interactionKey++ },
+                        recommendations = relatedVideos,
+                        onVideoClick = { nextVideo -> currentVideo = nextVideo },
                         onTogglePlay = {
                             if (isPlaying) exoPlayer.pause() else exoPlayer.play()
+                            interactionKey++
                         },
                         onSeek = { delta ->
                             val newPos = exoPlayer.currentPosition + (delta * 1000).toLong()
                             exoPlayer.seekTo(newPos.coerceIn(0, exoPlayer.duration))
+                            interactionKey++
                         },
                         onToggleComments = {
                             isCommentsOpen = !isCommentsOpen
                             isLyricsOpen = false
+                            interactionKey++
                         },
                         onToggleLyrics = {
                             isLyricsOpen = !isLyricsOpen
                             isCommentsOpen = false
+                            interactionKey++
                         },
-                        onToggleStats = { showStats = !showStats },
+                        onToggleStats = { showStats = !showStats; interactionKey++ },
                         onSetSpeed = { speed ->
                             playbackSpeed = speed
                             exoPlayer.setPlaybackSpeed(speed)
+                            interactionKey++
                         },
-                        onToggleLiked = { viewModel.toggleLiked(currentVideo) },
-                        onToggleWatchLater = { viewModel.toggleWatchLater(currentVideo) },
+                        onToggleLiked = { viewModel.toggleLiked(currentVideo); interactionKey++ },
+                        onToggleWatchLater = { viewModel.toggleWatchLater(currentVideo); interactionKey++ },
                         currentSpeed = playbackSpeed,
                         currentChapter = currentChapter?.title,
                         onClose = {
