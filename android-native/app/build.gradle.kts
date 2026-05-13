@@ -12,6 +12,10 @@ android {
     namespace = "com.youtubekids.youtube"
     compileSdk = 36
 
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     defaultConfig {
         applicationId = "com.youtubekids.youtube"
         minSdk = 26

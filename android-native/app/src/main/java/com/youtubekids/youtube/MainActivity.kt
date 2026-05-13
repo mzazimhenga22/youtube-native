@@ -117,12 +117,6 @@ class MainActivity : ComponentActivity() {
                     ProfilePickerScreen(
                         onProfileSelected = { profile ->
                             viewModel.setProfile(profile)
-                            // Reset navigation to the appropriate home for the selected profile
-                            val startRoute = if (profile.mode == "kids") "kids-home" else "home"
-                            navController.navigate(startRoute) {
-                                popUpTo(0) { inclusive = true }
-                                launchSingleTop = true
-                            }
                         }
                     )
                 } else {

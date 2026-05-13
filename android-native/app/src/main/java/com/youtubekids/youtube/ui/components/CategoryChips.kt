@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,7 +27,7 @@ data class Category(
 
 val CATEGORIES = listOf(
     Category("Recommended", Icons.Default.AutoAwesome, Color(0xFFFF0055)),
-    Category("Trending", Icons.Default.TrendingUp, Color(0xFF00AAFF)),
+    Category("Trending", Icons.AutoMirrored.Filled.TrendingUp, Color(0xFF00AAFF)),
     Category("Gaming", Icons.Default.Gamepad, Color(0xFF00FF99)),
     Category("Music", Icons.Default.MusicNote, Color(0xFF7700FF)),
     Category("Movies", Icons.Default.Movie, Color(0xFFFF9900)),

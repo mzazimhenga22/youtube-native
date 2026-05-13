@@ -3,6 +3,7 @@ package com.youtubekids.youtube.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -24,7 +26,6 @@ import androidx.tv.material3.*
 import coil.compose.AsyncImage
 import com.youtubekids.youtube.ui.Profile
 
-@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun FloatingHeader(
     currentProfile: Profile?,
@@ -219,7 +220,6 @@ fun FloatingHeader(
     }
 }
 
-@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun HeaderButton(
     icon: ImageVector,

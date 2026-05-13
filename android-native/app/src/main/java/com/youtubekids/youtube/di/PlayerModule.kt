@@ -17,6 +17,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object PlayerModule {
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     @Provides
     @Singleton
     fun provideExoPlayer(@ApplicationContext context: Context): ExoPlayer {

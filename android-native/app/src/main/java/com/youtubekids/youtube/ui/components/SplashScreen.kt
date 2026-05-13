@@ -5,7 +5,9 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,9 +31,6 @@ import com.youtubekids.youtube.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun SplashScreen(onFinish: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "singularity")

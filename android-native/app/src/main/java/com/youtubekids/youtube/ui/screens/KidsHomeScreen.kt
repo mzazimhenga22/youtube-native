@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -47,7 +48,6 @@ data class KidsNavItem(
     val color: Color = Color.Transparent
 )
 
-@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun KidsHomeScreen(
     onVideoClick: (Video) -> Unit,
@@ -291,7 +291,6 @@ fun KidsHomeScreen(
     }
 }
 
-@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun KidsSidebarItem(item: KidsNavItem, isSelected: Boolean, onClick: () -> Unit) {
     var isFocused by remember { mutableStateOf(false) }
@@ -325,7 +324,6 @@ private fun KidsSidebarItem(item: KidsNavItem, isSelected: Boolean, onClick: () 
     }
 }
 
-@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun KidsBottomPod(item: KidsNavItem, isSelected: Boolean, onClick: () -> Unit) {
     Column(
