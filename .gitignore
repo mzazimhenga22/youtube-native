@@ -19,3 +19,7 @@ android-native/app/release.keystore
 # OS
 .DS_Store
 *.swp
+
+# Node
+node_modules/
+node_innertube_test/
