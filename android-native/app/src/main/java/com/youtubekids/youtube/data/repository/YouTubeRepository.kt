@@ -899,7 +899,13 @@ class YouTubeRepository @Inject constructor(
             val result = innerTubeClient.getStreamUrl(videoId)
             if (result != null) {
                 Log.d(TAG, "getStream($videoId): SUCCESS — quality=${result.quality} mime=${result.mimeType} adaptive=${result.isAdaptive}")
-                return@withContext StreamResult(result.url, result.mimeType, result.isAdaptive)
+                return@withContext StreamResult(
+                    result.url,
+                    result.mimeType,
+                    result.isAdaptive,
+                    result.audioUrl,
+                    result.audioMimeType
+                )
             }
             Log.e(TAG, "getStream($videoId): InnerTubeClient returned null")
         } catch (e: Exception) {
@@ -908,7 +914,13 @@ class YouTubeRepository @Inject constructor(
         null
     }
 
-    data class StreamResult(val url: String, val mimeType: String, val adaptive: Boolean)
+    data class StreamResult(
+        val url: String,
+        val mimeType: String,
+        val adaptive: Boolean,
+        val audioUrl: String? = null,
+        val audioMimeType: String? = null
+    )
     data class Comment(val id: String, val user: String, val text: String, val likes: String, val avatar: String, val publishedTime: String)
     private data class RecommendationSignals(
         val seedVideos: List<Video>,

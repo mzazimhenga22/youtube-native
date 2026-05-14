@@ -28,10 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.youtubekids.youtube.data.model.Video
@@ -41,7 +41,10 @@ import com.youtubekids.youtube.ui.components.KidsVideoPlayerOverlay
 import com.youtubekids.youtube.ui.components.MusicPlayerOverlay
 import com.youtubekids.youtube.ui.components.SingularityLoader
 import com.youtubekids.youtube.ui.components.VideoPlayerOverlay
+import com.youtubekids.youtube.ui.components.VideoRecommendationShelf
 import com.youtubekids.youtube.ui.components.StatsForNerds
+import com.youtubekids.youtube.ui.player.setYouTubeStream
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -69,6 +72,7 @@ fun VideoPlayerScreen(
     var isCommentsOpen by remember { mutableStateOf(false) }
     var isLyricsOpen by remember { mutableStateOf(false) }
     var showUpNext by remember { mutableStateOf(false) }
+    var recommendationShelves by remember { mutableStateOf<List<VideoRecommendationShelf>>(emptyList()) }
     var upNextCountdown by remember { mutableIntStateOf(10) }
     var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
     var showStats by remember { mutableStateOf(false) }
@@ -86,6 +90,9 @@ fun VideoPlayerScreen(
     
     val currentProfile by viewModel.currentProfile.collectAsState()
     val globalStreamUrl by viewModel.globalStreamUrl.collectAsState()
+    val watchHistory by viewModel.watchHistory.collectAsState()
+    val likedVideos by viewModel.likedVideos.collectAsState()
+    val watchLater by viewModel.watchLater.collectAsState()
 
     // Fetch data and prepare player
     LaunchedEffect(currentVideo.id, retryKey) {
@@ -110,18 +117,59 @@ fun VideoPlayerScreen(
             }
 
             launch {
-                val related = if (currentProfile?.mode == "kids") {
-                    repository.getKidsUpNext(currentVideo.id)
-                } else {
-                    repository.getUpNext(currentVideo.id)
+                val seedVideo = currentVideo
+                val upNextDeferred = async {
+                    try {
+                        if (currentProfile?.mode == "kids") {
+                            repository.getKidsUpNext(seedVideo.id)
+                        } else {
+                            repository.getUpNext(seedVideo.id)
+                        }
+                    } catch (_: Exception) {
+                        emptyList<Video>()
+                    }
                 }
-                
-                // Fallback for music
-                if (related.isEmpty() && currentVideo.contentType == "music") {
-                    relatedVideos = repository.getMusicHome()
-                } else {
-                    relatedVideos = related
+                val relatedDeferred = async {
+                    try { repository.getRelatedVideos(seedVideo, limit = 16) } catch (_: Exception) { emptyList<Video>() }
                 }
+                val personalizedDeferred = async {
+                    try {
+                        repository.getRecommendations(
+                            watchHistory = watchHistory,
+                            likedVideos = likedVideos,
+                            watchLater = watchLater,
+                            limit = 16
+                        )
+                    } catch (_: Exception) {
+                        emptyList<Video>()
+                    }
+                }
+                val trendingDeferred = async {
+                    try { repository.getTrending() } catch (_: Exception) { emptyList<Video>() }
+                }
+
+                val upNext = upNextDeferred.await()
+                val related = relatedDeferred.await()
+                val personalized = personalizedDeferred.await()
+                val trending = trendingDeferred.await()
+
+                val primary = if (upNext.isEmpty() && seedVideo.contentType == "music") {
+                    repository.getMusicHome()
+                } else {
+                    upNext
+                }
+
+                relatedVideos = primary
+                    .ifEmpty { related }
+                    .ifEmpty { personalized }
+                    .ifEmpty { trending }
+                recommendationShelves = buildRecommendationShelves(
+                    currentVideo = seedVideo,
+                    upNext = relatedVideos,
+                    related = related,
+                    personalized = personalized,
+                    trending = trending
+                )
             }
             
             launch {
@@ -142,14 +190,7 @@ fun VideoPlayerScreen(
                 exoPlayer.pause()
                 val stream = repository.getStream(currentVideo.id)
                 if (stream != null) {
-                    val builder = MediaItem.Builder().setUri(stream.url)
-                    if (stream.mimeType.contains("mpegURL", ignoreCase = true) ||
-                        stream.mimeType.contains("x-mpegURL", ignoreCase = true)) {
-                        builder.setMimeType(stream.mimeType)
-                    }
-                    val mediaItem = builder.build()
-                    
-                    exoPlayer.setMediaItem(mediaItem)
+                    exoPlayer.setYouTubeStream(stream)
                     exoPlayer.prepare()
                     exoPlayer.play()
                     isPlaying = true
@@ -248,7 +289,7 @@ fun VideoPlayerScreen(
     val playerPaddingStart by animateDpAsState(targetValue = if (isOverlayVisible) 48.dp else 0.dp)
     val playerPaddingTop by animateDpAsState(targetValue = if (isOverlayVisible) 48.dp else 0.dp)
     val playerPaddingEnd by animateDpAsState(targetValue = if (isOverlayVisible) 400.dp else 0.dp)
-    val playerPaddingBottom by animateDpAsState(targetValue = if (isOverlayVisible) 300.dp else 0.dp)
+    val playerPaddingBottom by animateDpAsState(targetValue = if (isOverlayVisible) 520.dp else 0.dp)
     val overlayBackgroundAlpha by animateFloatAsState(targetValue = if (isOverlayVisible) 0.45f else 0f)
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -269,11 +310,15 @@ fun VideoPlayerScreen(
                     PlayerView(context).apply {
                         player = exoPlayer
                         useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                         layoutParams = FrameLayout.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
                     }
+                },
+                update = { playerView ->
+                    playerView.player = exoPlayer
                 },
                 modifier = Modifier.fillMaxSize()
             )
@@ -359,6 +404,7 @@ fun VideoPlayerScreen(
                         },
                         onUserInteraction = { interactionKey++ },
                         recommendations = relatedVideos,
+                        recommendationShelves = recommendationShelves,
                         onVideoClick = { nextVideo -> currentVideo = nextVideo },
                         onTogglePlay = {
                             if (isPlaying) exoPlayer.pause() else exoPlayer.play()
@@ -462,6 +508,29 @@ fun VideoPlayerScreen(
             }
         }
     }
+}
+
+private fun buildRecommendationShelves(
+    currentVideo: Video,
+    upNext: List<Video>,
+    related: List<Video>,
+    personalized: List<Video>,
+    trending: List<Video>
+): List<VideoRecommendationShelf> {
+    fun clean(videos: List<Video>): List<Video> {
+        return videos
+            .filter { it.id.isNotBlank() && it.id != currentVideo.id }
+            .filter { it.thumbnail.isNotBlank() }
+            .distinctBy { it.id }
+            .take(12)
+    }
+
+    return listOf(
+        VideoRecommendationShelf("Up next", clean(upNext)),
+        VideoRecommendationShelf("More like this", clean(related)),
+        VideoRecommendationShelf("Recommended for you", clean(personalized)),
+        VideoRecommendationShelf("Trending now", clean(trending))
+    ).filter { it.videos.isNotEmpty() }
 }
 
 @Composable

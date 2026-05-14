@@ -29,6 +29,11 @@ import androidx.compose.ui.input.key.type
 import coil.compose.AsyncImage
 import com.youtubekids.youtube.data.model.Video
 
+data class VideoRecommendationShelf(
+    val title: String,
+    val videos: List<Video>
+)
+
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun VideoPlayerOverlay(
@@ -52,6 +57,7 @@ fun VideoPlayerOverlay(
     currentChapter: String? = null,
     onClose: () -> Unit,
     recommendations: List<Video> = emptyList(),
+    recommendationShelves: List<VideoRecommendationShelf> = emptyList(),
     onVideoClick: (Video) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -248,25 +254,29 @@ fun VideoPlayerOverlay(
                         }
                     }
 
-                    // Up Next Recommendations
-                    if (recommendations.isNotEmpty()) {
+                    val shelves = recommendationShelves.ifEmpty {
+                        if (recommendations.isNotEmpty()) listOf(VideoRecommendationShelf("Up Next", recommendations)) else emptyList()
+                    }.map { shelf -> shelf.copy(videos = shelf.videos.distinctBy { it.id }.take(12)) }
+                        .filter { it.videos.isNotEmpty() }
+
+                    // YouTube-style recommendation shelves under the controls.
+                    if (shelves.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(24.dp))
-                        Text(
-                            text = "Up Next",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            contentPadding = PaddingValues(end = 48.dp)
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 430.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(bottom = 8.dp)
                         ) {
-                            items(recommendations) { rec ->
-                                UpNextVideoCard(video = rec) {
-                                    onVideoClick(rec)
-                                    onUserInteraction()
-                                }
+                            items(shelves) { shelf ->
+                                RecommendationShelfRow(
+                                    shelf = shelf,
+                                    onVideoClick = { rec ->
+                                        onVideoClick(rec)
+                                        onUserInteraction()
+                                    }
+                                )
                             }
                         }
                     }
@@ -276,6 +286,33 @@ fun VideoPlayerOverlay(
 
         if (showStats) {
             StatsForNerds(video = video, onClose = { showStats = false })
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun RecommendationShelfRow(
+    shelf: VideoRecommendationShelf,
+    onVideoClick: (Video) -> Unit
+) {
+    Column {
+        Text(
+            text = shelf.title,
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(end = 48.dp)
+        ) {
+            items(shelf.videos, key = { it.id }) { rec ->
+                UpNextVideoCard(video = rec, width = 230.dp) {
+                    onVideoClick(rec)
+                }
+            }
         }
     }
 }
@@ -312,11 +349,12 @@ private fun OverlayButton(
 @Composable
 private fun UpNextVideoCard(
     video: Video,
+    width: androidx.compose.ui.unit.Dp = 280.dp,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.width(280.dp),
+        modifier = Modifier.width(width),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
@@ -352,11 +390,11 @@ private fun UpNextVideoCard(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = video.title,
                 color = Color.White,
-                fontSize = 15.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -365,7 +403,7 @@ private fun UpNextVideoCard(
             Text(
                 text = video.channel,
                 color = Color.White.copy(alpha = 0.5f),
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -374,7 +412,7 @@ private fun UpNextVideoCard(
                 Text(
                     text = video.views,
                     color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

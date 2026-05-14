@@ -11,13 +11,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -28,6 +29,7 @@ import com.youtubekids.youtube.data.model.Video
 import com.youtubekids.youtube.data.repository.YouTubeRepository
 import com.youtubekids.youtube.ui.components.KidsVideoPlayerOverlay
 import com.youtubekids.youtube.ui.components.MagicKidsLoader
+import com.youtubekids.youtube.ui.player.setYouTubeStream
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -53,12 +55,7 @@ fun KidsVideoPlayerScreen(
         try {
             val stream = repository.getStream(video.id)
             if (stream?.url != null) {
-                val builder = MediaItem.Builder().setUri(stream.url)
-                // Only set mimeType explicitly for HLS streams
-                if (stream.mimeType.contains("mpegURL", ignoreCase = true)) {
-                    builder.setMimeType(stream.mimeType)
-                }
-                exoPlayer.setMediaItem(builder.build())
+                exoPlayer.setYouTubeStream(stream)
                 exoPlayer.prepare()
                 exoPlayer.playWhenReady = true
                 
@@ -116,6 +113,9 @@ fun KidsVideoPlayerScreen(
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                 }
+            },
+            update = { playerView ->
+                playerView.player = exoPlayer
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -178,7 +178,7 @@ fun KidsVideoPlayerScreen(
         }
 
         // Focus management
-        val backgroundFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+        val backgroundFocusRequester = remember { FocusRequester() }
 
         LaunchedEffect(controlsVisible) {
             if (!controlsVisible && !loading && error == null) {
@@ -193,10 +193,10 @@ fun KidsVideoPlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .androidx.compose.ui.focus.focusRequester(backgroundFocusRequester)
+                    .focusRequester(backgroundFocusRequester)
                     .focusable()
                     .onKeyEvent { event ->
-                        if (event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown) {
+                        if (event.type == KeyEventType.KeyDown) {
                             when (event.nativeKeyEvent.keyCode) {
                                 android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
                                 android.view.KeyEvent.KEYCODE_SPACE -> {

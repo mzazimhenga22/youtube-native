@@ -224,7 +224,8 @@ fun MusicPlayerOverlay(
                             )
                     )
                     
-                    // Album art card
+                    // Album art card. The background owns the PlayerView; using
+                    // another PlayerView here steals ExoPlayer's video surface.
                     Box(
                         modifier = Modifier
                             .size(280.dp)
@@ -232,39 +233,12 @@ fun MusicPlayerOverlay(
                             .clip(RoundedCornerShape(28.dp))
                             .background(Color.DarkGray)
                     ) {
-                        // Show a small video preview inside the album art
-                        if (exoPlayer != null) {
-                            AndroidView(
-                                factory = { context ->
-                                    PlayerView(context).apply {
-                                        player = exoPlayer
-                                        useController = false
-                                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                        layoutParams = FrameLayout.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
-                                            ViewGroup.LayoutParams.MATCH_PARENT
-                                        )
-                                    }
-                                },
-                                update = { playerView ->
-                                    playerView.player = exoPlayer
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            // Subtle dark overlay so text remains readable
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.15f))
-                            )
-                        } else {
-                            AsyncImage(
-                                model = video.thumbnail,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
+                        AsyncImage(
+                            model = video.thumbnail,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
                     }
                 }
 
@@ -371,6 +345,11 @@ fun MusicPlayerOverlay(
             Column(
                 modifier = Modifier.width(320.dp).fillMaxHeight().padding(vertical = 20.dp)
             ) {
+                val visibleRecommendations = recommendations
+                    .filter { it.id.isNotBlank() && it.id != video.id }
+                    .distinctBy { it.id }
+                    .take(20)
+
                 Text("Up Next", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -382,7 +361,7 @@ fun MusicPlayerOverlay(
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(recommendations, key = { it.id }) { item ->
+                    items(visibleRecommendations, key = { it.id }) { item ->
                         Surface(
                             onClick = { onVideoClick(item) },
                             modifier = Modifier.fillMaxWidth(),

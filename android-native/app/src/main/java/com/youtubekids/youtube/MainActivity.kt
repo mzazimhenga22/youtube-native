@@ -206,9 +206,14 @@ class MainActivity : ComponentActivity() {
                                 composable("search") {
                                     SearchScreen(
                                         onVideoClick = { video ->
-                                            val tagged = video.copy(contentType = "video")
+                                            val tagged = tagSearchResult(video)
                                             viewModel.setGlobalPlayback(tagged, null)
-                                            navController.navigate("player")
+                                            when (tagged.contentType) {
+                                                "music" -> navController.navigate("music-player")
+                                                "shorts" -> navController.navigate("shorts-player")
+                                                "live" -> navController.navigate("player")
+                                                else -> navController.navigate("player")
+                                            }
                                         },
                                         repository = repository
                                     )
@@ -434,5 +439,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+private fun tagSearchResult(video: com.youtubekids.youtube.data.model.Video): com.youtubekids.youtube.data.model.Video {
+    val normalized = "${video.title} ${video.channel}".lowercase()
+    return when {
+        video.isLive || normalized.contains(" live") || normalized.contains("livestream") ->
+            video.copy(contentType = "live", isLive = true)
+        normalized.contains("#shorts") || normalized.contains(" shorts") ->
+            video.copy(contentType = "shorts")
+        normalized.contains("official music") ||
+            normalized.contains("official video") ||
+            normalized.contains("lyrics") ||
+            normalized.contains("vevo") ||
+            normalized.contains("music") ->
+            video.copy(contentType = "music")
+        else -> video.copy(contentType = "video")
     }
 }

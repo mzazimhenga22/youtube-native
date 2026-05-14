@@ -30,7 +30,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -40,6 +39,7 @@ import coil.compose.AsyncImage
 import com.youtubekids.youtube.data.model.Video
 import com.youtubekids.youtube.ui.components.MusicCard
 import com.youtubekids.youtube.data.repository.YouTubeRepository
+import com.youtubekids.youtube.ui.player.setYouTubeStream
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -113,11 +113,7 @@ fun MusicScreen(
                     exoPlayer?.let { player ->
                         player.stop()
                         player.clearMediaItems()
-                        val builder = MediaItem.Builder().setUri(stream.url)
-                        if (stream.mimeType.contains("mpegURL", ignoreCase = true)) {
-                            builder.setMimeType(stream.mimeType)
-                        }
-                        player.setMediaItem(builder.build())
+                        player.setYouTubeStream(stream)
                         player.prepare()
                         player.playWhenReady = true
                         player.volume = 0.3f // Low volume for preview

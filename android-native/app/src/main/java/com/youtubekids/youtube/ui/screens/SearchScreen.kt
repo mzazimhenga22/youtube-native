@@ -320,12 +320,13 @@ fun SearchScreen(
                     }
                 } else {
                     LazyVerticalGrid(
+                        modifier = Modifier.fillMaxSize(),
                         columns = GridCells.Adaptive(minSize = 260.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         contentPadding = PaddingValues(bottom = 120.dp)
                     ) {
-                        items(results, key = { it.id }) { video ->
+                        items(results.filter { it.id.isNotBlank() }, key = { it.id }) { video ->
                             VideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }

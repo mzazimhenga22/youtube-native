@@ -38,11 +38,11 @@ import coil.compose.AsyncImage
 import com.youtubekids.youtube.data.model.Video
 import com.youtubekids.youtube.data.repository.YouTubeRepository
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.media3.common.util.UnstableApi
+import com.youtubekids.youtube.ui.player.setYouTubeStream
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -91,11 +91,7 @@ fun ShortsPlayerScreen(
         try {
             val stream = repository.getStream(video.id)
             if (stream?.url != null) {
-                val builder = MediaItem.Builder().setUri(stream.url)
-                if (stream.mimeType.contains("mpegURL", ignoreCase = true)) {
-                    builder.setMimeType(stream.mimeType)
-                }
-                exoPlayer.setMediaItem(builder.build())
+                exoPlayer.setYouTubeStream(stream)
                 exoPlayer.prepare()
                 exoPlayer.playWhenReady = true
                 isPlaying = true
@@ -129,8 +125,6 @@ fun ShortsPlayerScreen(
             exoPlayer.clearMediaItems()
         }
     }
-
-    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
 
     // Request focus on the active page whenever it changes
     LaunchedEffect(pagerState.currentPage) {
@@ -171,11 +165,11 @@ fun ShortsPlayerScreen(
                     modifier = Modifier
                         .height(580.dp)
                         .width(326.dp)
-                        .run { if (isCurrentPage) androidx.compose.ui.focus.focusRequester(focusRequester) else this }
+                        .run { if (isCurrentPage) focusRequester(focusRequester) else this }
                         .onKeyEvent { event ->
-                            if (event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown) {
+                            if (event.type == KeyEventType.KeyDown) {
                                 when (event.key) {
-                                    androidx.compose.ui.input.key.Key.DirectionDown -> {
+                                    Key.DirectionDown -> {
                                         if (pagerState.currentPage < shorts.size - 1) {
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
@@ -183,7 +177,7 @@ fun ShortsPlayerScreen(
                                         }
                                         true
                                     }
-                                    androidx.compose.ui.input.key.Key.DirectionUp -> {
+                                    Key.DirectionUp -> {
                                         if (pagerState.currentPage > 0) {
                                             coroutineScope.launch {
                                                 pagerState.animateScrollToPage(pagerState.currentPage - 1)

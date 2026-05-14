@@ -17,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +48,7 @@ fun KidsVideoPlayerOverlay(
     onSelectVideo: (Video) -> Unit
 ) {
     val safeProgress = progress.coerceIn(0f, 1f)
-    val playPauseFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val playPauseFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
         try {
@@ -131,7 +133,7 @@ fun KidsVideoPlayerOverlay(
                     onClick = onTogglePlay,
                     modifier = Modifier
                         .size(64.dp)
-                        .androidx.compose.ui.focus.focusRequester(playPauseFocusRequester),
+                        .focusRequester(playPauseFocusRequester),
                     shape = ClickableSurfaceDefaults.shape(CircleShape),
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
                     colors = ClickableSurfaceDefaults.colors(containerColor = KidsRed),

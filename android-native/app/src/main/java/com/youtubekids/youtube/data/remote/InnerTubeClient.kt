@@ -117,7 +117,8 @@ class InnerTubeClient @Inject constructor() {
 
     data class StreamResult(
         val url: String, val mimeType: String, val quality: String,
-        val isAdaptive: Boolean, val isLive: Boolean, val itag: Int?
+        val isAdaptive: Boolean, val isLive: Boolean, val itag: Int?,
+        val audioUrl: String? = null, val audioMimeType: String? = null
     )
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -411,25 +412,32 @@ class InnerTubeClient @Inject constructor() {
      * their URLs on the fly using the parsed cipher operations.
      *
      * Priority:
-     *   1. HLS for live content
-     *   2. Muxed (progressive) video+audio — works with simple MediaItem.fromUri()
-     *   3. Adaptive video+audio combined — only if no muxed stream available
-     *   4. Audio-only fallback
+     *   1. HLS manifest
+     *   2. Muxed progressive video+audio
+     *   3. Merged adaptive video+audio
+     *   4. DASH manifest
      *
-     * NOTE: DASH manifests are intentionally skipped because they require
-     * DashMediaSource; a plain MediaItem.fromUri() cannot parse them and
-     * results in audio-only or no playback.
+     * Single adaptive formats are only used as a video+audio pair. Returning
+     * one track by itself causes either audio with no video or no audio.
      */
     fun chooseStream(info: VideoInfo): StreamResult? {
         val sd = info.streamingData ?: return null
 
-        // 1. Live → HLS
-        if (info.isLive && sd.hlsManifestUrl != null) {
+        // 1. HLS manifests contain both audio and video variants and are safe
+        // to play as a single MediaItem.
+        if (sd.hlsManifestUrl != null) {
             return StreamResult(sd.hlsManifestUrl, "application/x-mpegURL", "auto",
-                isAdaptive = false, isLive = true, itag = null)
+                isAdaptive = false, isLive = info.isLive, itag = null)
         }
 
-        // 2. Muxed video+audio (progressive) — PREFERRED for simple playback
+        // Live DASH manifests also describe both audio and video tracks. The app
+        // already includes media3-exoplayer-dash, so ExoPlayer can parse them.
+        if (info.isLive && sd.dashManifestUrl != null) {
+            return StreamResult(sd.dashManifestUrl, "application/dash+xml", "auto",
+                isAdaptive = false, isLive = info.isLive, itag = null)
+        }
+
+        // 3. Muxed video+audio (progressive) — PREFERRED for simple playback
         //    These contain both video and audio in a single MP4 container.
         resolveFormat(sd.formats.filter { it.hasVideo && it.hasAudio }.sortedByDescending { it.bitrate })
             ?.let {
@@ -437,30 +445,63 @@ class InnerTubeClient @Inject constructor() {
                 return it.copy(isAdaptive = false)
             }
 
-        // 3. Muxed formats that have video (may lack audio marker but still progressive)
-        resolveFormat(sd.formats.filter { it.hasVideo }.sortedByDescending { it.bitrate })
-            ?.let {
-                Log.d(TAG, "chooseStream(${info.videoId}): Using muxed video stream")
-                return it.copy(isAdaptive = false)
-            }
+        resolveAdaptivePair(sd.adaptiveFormats)?.let {
+            Log.d(TAG, "chooseStream(${info.videoId}): Using merged adaptive stream")
+            return it
+        }
 
-        // 4. Adaptive video (highest bitrate) — NOTE: this is video-only,
-        //    will have no audio unless ExoPlayer merges tracks.
-        resolveFormat(sd.adaptiveFormats.filter { it.hasVideo }.sortedByDescending { it.bitrate })
-            ?.let {
-                Log.w(TAG, "chooseStream(${info.videoId}): Falling back to adaptive video-only")
-                return it.copy(isAdaptive = true)
-            }
+        if (sd.dashManifestUrl != null) {
+            return StreamResult(sd.dashManifestUrl, "application/dash+xml", "auto",
+                isAdaptive = false, isLive = info.isLive, itag = null)
+        }
 
-        // 5. Audio-only fallback
-        resolveFormat(sd.adaptiveFormats.filter { it.hasAudio && !it.hasVideo }.sortedByDescending { it.bitrate })
-            ?.let {
-                Log.w(TAG, "chooseStream(${info.videoId}): Falling back to audio-only")
-                return it.copy(isAdaptive = true)
-            }
-
-        Log.w(TAG, "chooseStream(${info.videoId}): No playable stream")
+        Log.w(TAG, "chooseStream(${info.videoId}): No playable audio/video stream")
         return null
+    }
+
+    private fun resolveAdaptivePair(formats: List<StreamFormat>): StreamResult? {
+        val video = formats
+            .filter { it.hasVideo && !it.hasAudio }
+            .sortedWith(compareByDescending<StreamFormat> { videoFormatScore(it) }.thenByDescending { it.bitrate })
+            .firstNotNullOfOrNull { f -> resolveUrl(f)?.let { f to it } }
+
+        val audio = formats
+            .filter { it.hasAudio && !it.hasVideo }
+            .sortedWith(compareByDescending<StreamFormat> { audioFormatScore(it) }.thenByDescending { it.bitrate })
+            .firstNotNullOfOrNull { f -> resolveUrl(f)?.let { f to it } }
+
+        if (video == null || audio == null) return null
+
+        val videoFormat = video.first
+        val audioFormat = audio.first
+        return StreamResult(
+            url = video.second,
+            mimeType = videoFormat.mimeType.substringBefore(";").trim(),
+            quality = videoFormat.qualityLabel ?: videoFormat.quality,
+            isAdaptive = true,
+            isLive = false,
+            itag = videoFormat.itag,
+            audioUrl = audio.second,
+            audioMimeType = audioFormat.mimeType.substringBefore(";").trim()
+        )
+    }
+
+    private fun videoFormatScore(format: StreamFormat): Int {
+        val mime = format.mimeType.lowercase()
+        val codecScore = when {
+            mime.contains("avc1") -> 300
+            mime.contains("vp9") || mime.contains("vp09") -> 200
+            mime.contains("av01") -> 100
+            else -> 0
+        }
+        val containerScore = if (mime.startsWith("video/mp4")) 50 else 0
+        return codecScore + containerScore + (format.height ?: 0)
+    }
+
+    private fun audioFormatScore(format: StreamFormat): Int {
+        val mime = format.mimeType.lowercase()
+        val containerScore = if (mime.startsWith("audio/mp4")) 100 else 0
+        return containerScore + (format.bitrate / 1000).toInt()
     }
 
     /**
