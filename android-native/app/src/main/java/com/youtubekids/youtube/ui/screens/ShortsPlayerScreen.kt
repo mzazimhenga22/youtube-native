@@ -4,6 +4,7 @@ package com.youtubekids.youtube.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -14,12 +15,15 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +38,7 @@ import androidx.media3.common.MediaItem
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
 import androidx.media3.common.util.UnstableApi
+import kotlinx.coroutines.launch
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -46,19 +51,56 @@ fun ShortsPlayerScreen(
 ) {
     var shorts by remember { mutableStateOf(listOf(initialVideo)) }
     val pagerState = rememberPagerState(pageCount = { shorts.size })
+    val coroutineScope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
         val related = repository.search("shorts viral")
         shorts = listOf(initialVideo) + related.filter { it.id != initialVideo.id }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF050505))) {
+    // Auto-focus so the Box receives D-pad key events immediately
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF050505))
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    when (event.key) {
+                        Key.DirectionDown -> {
+                            if (pagerState.currentPage < shorts.size - 1) {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                }
+                            }
+                            true
+                        }
+                        Key.DirectionUp -> {
+                            if (pagerState.currentPage > 0) {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                }
+                            }
+                            true
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+    ) {
         // Ambient orbs
         ShortsAmbientCanvas()
 
         VerticalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = false // Disable touch scroll; D-pad controls paging
         ) { page ->
             val video = shorts[page]
             ShortPage(

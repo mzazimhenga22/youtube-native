@@ -32,17 +32,26 @@ fun HomeScreen(
     
     val watchHistory by viewModel.watchHistory.collectAsState()
 
-    // Initial data fetch
+    // Initial data fetch with retry
     LaunchedEffect(Unit) {
         isLoading = true
-        try {
-            homeVideos = repository.getHomeVideos()
-            trendingVideos = repository.getTrending()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            isLoading = false
+        var retries = 0
+        val maxRetries = 3
+        while (retries < maxRetries) {
+            try {
+                homeVideos = repository.getHomeVideos()
+                trendingVideos = repository.getTrending()
+                // If we got data, stop retrying
+                if (homeVideos.isNotEmpty() || trendingVideos.isNotEmpty()) break
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            retries++
+            if (retries < maxRetries) {
+                kotlinx.coroutines.delay(2000L * retries)
+            }
         }
+        isLoading = false
     }
 
     // Category fetch

@@ -1,11 +1,10 @@
 package com.youtubekids.youtube.data.repository
 
-import android.content.Context
 import android.util.Log
 import com.youtubekids.youtube.data.model.Chapter
 import com.youtubekids.youtube.data.model.Video
+import com.youtubekids.youtube.data.remote.InnerTubeClient
 import com.youtubekids.youtube.data.remote.YouTubeApi
-import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.log10
@@ -13,14 +12,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
-import com.maxrave.kotlinyoutubeextractor.YTExtractor
-import com.maxrave.kotlinyoutubeextractor.State
 
 @Singleton
 class YouTubeRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val api: YouTubeApi,
-    private val json: Json
+    private val json: Json,
+    private val innerTubeClient: InnerTubeClient
 ) {
     private val domain = "https://www.youtube.com"
     private val credentialUrl = "$domain/?gl=US&hl=en"
@@ -35,6 +32,8 @@ class YouTubeRepository @Inject constructor(
     private var cachedClientVersion: String? = null
     private var cachedVisitorData: String? = null
     private val authMutex = Mutex()
+    @Volatile private var credentialAttempts = 0
+    private val maxCredentialRetries = 3
 
     private val stopWords = setOf(
         "the", "and", "for", "with", "from", "this", "that", "you", "your",
@@ -43,26 +42,63 @@ class YouTubeRepository @Inject constructor(
     )
 
     private suspend fun ensureCredentials() = authMutex.withLock {
-        if (cachedApiKey != null && cachedClientVersion != null) return@withLock
+        // Already have valid credentials
+        if (cachedApiKey != null) return@withLock
 
-        try {
-            Log.d(TAG, "Initializing InnerTube credentials...")
-            val response = api.getRequest(credentialUrl, headers)
-            if (response.isSuccessful) {
-                val html = response.body()?.string() ?: ""
-                
-                // More robust regexes to handle varying YouTube naming conventions
-                cachedApiKey = Regex(""""(?:INNERTUBE_API_KEY|apiKey)":"(.+?)"""").find(html)?.groupValues?.get(1)
-                cachedClientVersion = Regex(""""clientVersion":"([\d.]+)"""").find(html)?.groupValues?.get(1) ?: "2.20240101.01.00"
-                cachedVisitorData = Regex(""""visitorData":"(.+?)"""").find(html)?.groupValues?.get(1)
-                
-                Log.d(TAG, "API Key: ${cachedApiKey?.take(8)}..., Version: $cachedClientVersion, Visitor: ${cachedVisitorData?.take(8)}...")
-            } else {
-                Log.e(TAG, "ensureCredentials HTTP error: ${response.code()}")
+        for (attempt in 1..maxCredentialRetries) {
+            try {
+                Log.d(TAG, "Fetching credentials (attempt $attempt/$maxCredentialRetries)...")
+
+                // Strategy 1: Use Retrofit API
+                val response = api.getRequest(credentialUrl, headers)
+                if (response.isSuccessful) {
+                    val html = response.body()?.string() ?: ""
+                    parseCredentialsFromHtml(html)
+                }
+
+                // If Retrofit didn't yield an API key, try InnerTubeClient's credentials
+                if (cachedApiKey == null) {
+                    Log.d(TAG, "Retrofit scrape didn't find API key, trying InnerTubeClient...")
+                    innerTubeClient.init()
+                    // InnerTubeClient already parsed credentials — try a known fallback key
+                    // YouTube's public InnerTube API key rarely changes
+                    cachedApiKey = cachedApiKey ?: "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+                    cachedClientVersion = cachedClientVersion ?: "2.20260101.01.00"
+                }
+
+                if (cachedApiKey != null) {
+                    Log.d(TAG, "Credentials OK — key=${cachedApiKey?.take(8)}... ver=$cachedClientVersion")
+                    credentialAttempts = 0
+                    return@withLock
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "ensureCredentials attempt $attempt failed: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "ensureCredentials failed", e)
+
+            // Exponential backoff before retry (1s, 2s, 4s)
+            if (attempt < maxCredentialRetries) {
+                val delayMs = (1000L * (1 shl (attempt - 1)))
+                Log.d(TAG, "Retrying in ${delayMs}ms...")
+                kotlinx.coroutines.delay(delayMs)
+            }
         }
+
+        // Final fallback: use hardcoded public API key so browsing at least works
+        if (cachedApiKey == null) {
+            Log.w(TAG, "All credential attempts failed — using fallback API key")
+            cachedApiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+            cachedClientVersion = "2.20260101.01.00"
+        }
+    }
+
+    private fun parseCredentialsFromHtml(html: String) {
+        if (html.isEmpty()) return
+        cachedApiKey = cachedApiKey ?: Regex(""""(?:INNERTUBE_API_KEY|apiKey)":"(.+?)"""")
+            .find(html)?.groupValues?.get(1)
+        cachedClientVersion = cachedClientVersion ?: Regex(""""clientVersion":"([\d.]+)"""")
+            .find(html)?.groupValues?.get(1)
+        cachedVisitorData = cachedVisitorData ?: Regex(""""visitorData":"(.+?)"""")
+            .find(html)?.groupValues?.get(1)
     }
 
     suspend fun getHomeVideos(): List<Video> = browse("FEwhat_to_watch")
@@ -852,206 +888,26 @@ class YouTubeRepository @Inject constructor(
         )
     }
 
+    /**
+     * Gets the best playable stream URL for a video.
+     * Delegates entirely to [InnerTubeClient] which handles multi-client
+     * rotation and format selection (HLS → muxed → adaptive → audio).
+     */
     suspend fun getStream(videoId: String): StreamResult? = withContext(Dispatchers.IO) {
-        Log.d(TAG, "getStream($videoId): Trying YTExtractor as primary method...")
+        Log.d(TAG, "getStream($videoId): Delegating to InnerTubeClient...")
         try {
-            val yt = YTExtractor(con = context, CACHING = false, LOGGING = false, retryCount = 2)
-            yt.extract(videoId)
-            
-            if (yt.state == State.SUCCESS) {
-                val ytFiles = yt.getYTFiles()
-                
-                // Try to get a video file that also has audio (often itag 18 or 22)
-                val itagsToTry = listOf(22, 18, 137, 136, 135)
-                for (itag in itagsToTry) {
-                    val ytFile = ytFiles?.get(itag)
-                    if (ytFile != null && !ytFile.url.isNullOrEmpty()) {
-                        Log.d(TAG, "getStream($videoId): Found primary stream via YTExtractor (itag $itag)")
-                        return@withContext StreamResult(ytFile.url!!, "video/mp4", false)
-                    }
-                }
-                
-                // We'll just grab the first available video URL
-                if (ytFiles != null && ytFiles.size() > 0) {
-                   for (i in 0 until ytFiles.size()) {
-                       val file = ytFiles.valueAt(i)
-                       if (!file.url.isNullOrEmpty()) {
-                           Log.d(TAG, "getStream($videoId): Found primary stream via YTExtractor (first available)")
-                           return@withContext StreamResult(file.url!!, "video/mp4", false)
-                       }
-                   }
-                }
-            } else {
-                Log.e(TAG, "getStream($videoId): YTExtractor failed with state ${yt.state}, falling back to InnerTube clients...")
+            val result = innerTubeClient.getStreamUrl(videoId)
+            if (result != null) {
+                Log.d(TAG, "getStream($videoId): SUCCESS — quality=${result.quality} mime=${result.mimeType} adaptive=${result.isAdaptive}")
+                return@withContext StreamResult(result.url, result.mimeType, result.isAdaptive)
             }
+            Log.e(TAG, "getStream($videoId): InnerTubeClient returned null")
         } catch (e: Exception) {
-            Log.e(TAG, "getStream($videoId): YTExtractor exception: ${e.message}, falling back to InnerTube clients...")
+            Log.e(TAG, "getStream($videoId): Exception: ${e.message}", e)
         }
-
-        // --- Fallback to InnerTube clients ---
-        Log.d(TAG, "getStream($videoId): Using InnerTube clients as fallback")
-        ensureCredentials()
-        val apiKey = cachedApiKey ?: return@withContext null
-
-        // Ordered by reliability for getting direct playable URLs
-        val clients = listOf(
-            // IOS client provides direct URLs without signature ciphers
-            ClientConfig("IOS", "19.29.1", "com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X; en_US)", "IOS"),
-            // TV client often returns HLS
-            ClientConfig("TVHTML5_SIMPLY_EMBEDDED", "2.0", "Mozilla/5.0 (SmartTV; Google TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36", "TVHTML5_SIMPLY_EMBEDDED_PLAYER"),
-            // Android clients tend to return direct URLs
-            ClientConfig("ANDROID", "19.29.37", "com.google.android.youtube/19.29.37 (Linux; U; Android 14; en_US) gzip", "ANDROID"),
-            ClientConfig("ANDROID_MUSIC", "6.45.54", "com.google.android.apps.youtube.music/6.45.54 (Linux; U; Android 14; en_US) gzip", "ANDROID_MUSIC"),
-            ClientConfig("ANDROID_VR", "1.60.19", "com.google.android.youtube.vr/1.60.19 (Linux; U; Android 12; en_US) gzip", "ANDROID_VR"),
-            ClientConfig("ANDROID_TESTSUITE", "1.9.3", "com.google.android.youtube.testsuite/1.9.3 (Linux; U; Android 12; en_US) gzip", "ANDROID_TESTSUITE"),
-            // Web embedded can sometimes work
-            ClientConfig("WEB_EMBEDDED", "1.20240722.01.00", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "WEB_EMBEDDED_PLAYER"),
-            // MWEB
-            ClientConfig("MWEB", "2.20240501.00.00", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1", "MWEB"),
-            // Kids clients for broader coverage
-            ClientConfig("ANDROID_KIDS", "4.10.2", "com.google.android.youtube.kids/4.10.2 (Linux; U; Android 12; en_US) gzip", "ANDROID_KIDS"),
-            ClientConfig("IOS_KIDS", "4.10.2", "com.google.ios.youtube.kids/4.10.2 (iPhone; CPU iPhone OS 15_0 like Mac OS X; en_US) gzip", "IOS_KIDS")
-        )
-
-        for (client in clients) {
-            val body = buildJsonObject {
-                putJsonObject("context") {
-                    putJsonObject("client") {
-                        put("clientName", client.clientName)
-                        put("clientVersion", client.version)
-                        put("hl", "en-US")
-                        put("gl", "US")
-                        cachedVisitorData?.let { put("visitorData", it) }
-                    }
-                }
-                put("videoId", videoId)
-                putJsonObject("playbackContext") {
-                    putJsonObject("contentPlaybackContext") {
-                        put("signatureTimestamp", 20641)
-                    }
-                }
-                put("racyCheckOk", true)
-                put("contentCheckOk", true)
-            }
-
-            try {
-                val headersWithUserAgent = (headers + ("Content-Type" to "application/json")).toMutableMap().apply {
-                    put("User-Agent", client.userAgent)
-                }
-                val response = api.postRequest("$domain/youtubei/v1/player?key=$apiKey&prettyPrint=false", headersWithUserAgent, body)
-                if (response.isSuccessful) {
-                    val data = response.body() ?: continue
-                    val status = data["playabilityStatus"]?.jsonObject
-                    val playStatus = status?.get("status")?.jsonPrimitive?.content
-                    val reason = status?.get("reason")?.jsonPrimitive?.content
-
-                    if (playStatus == "OK") {
-                        val streamingData = data["streamingData"]?.jsonObject
-                        if (streamingData != null) {
-                            extractStream(streamingData)?.let {
-                                Log.d(TAG, "getStream($videoId): Found fallback stream via ${client.name} (${if (it.adaptive) "Adaptive" else "Progressive"})")
-                                return@withContext it
-                            }
-                            Log.d(TAG, "getStream($videoId): ${client.name} had streamingData but no extractable stream")
-                        } else {
-                            Log.d(TAG, "getStream($videoId): ${client.name} status=OK but no streamingData")
-                        }
-                    } else {
-                        Log.d(TAG, "getStream($videoId): ${client.name} status=$playStatus reason=$reason")
-                    }
-                } else {
-                    Log.d(TAG, "getStream($videoId): ${client.name} HTTP ${response.code()}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "getStream($videoId): ${client.name} exception: ${e.message}")
-            }
-        }
-        
-        Log.e(TAG, "getStream($videoId): All methods exhausted, no stream found")
         null
     }
 
-    private fun extractStream(streamingData: JsonObject): StreamResult? {
-        // Priority 1: HLS manifest (best for live and general playback)
-        streamingData["hlsManifestUrl"]?.jsonPrimitive?.content?.let {
-            Log.d(TAG, "extractStream: Found HLS manifest")
-            return StreamResult(it, "application/x-mpegURL", true)
-        }
-
-        // Priority 2: DASH manifest
-        streamingData["dashManifestUrl"]?.jsonPrimitive?.content?.let {
-            Log.d(TAG, "extractStream: Found DASH manifest")
-            return StreamResult(it, "application/dash+xml", true)
-        }
-
-        val formats = streamingData["formats"]?.jsonArray ?: JsonArray(emptyList())
-        val adaptiveFormats = streamingData["adaptiveFormats"]?.jsonArray ?: JsonArray(emptyList())
-
-        // Priority 3: Muxed (progressive) formats with direct URL - these are the most reliable
-        val muxedFormats = formats.mapNotNull { it as? JsonObject }
-            .filter { f ->
-                val url = f["url"]?.jsonPrimitive?.content
-                val hasNoSignature = f["signatureCipher"] == null
-                val mimeType = f["mimeType"]?.jsonPrimitive?.content ?: ""
-                val isVideo = mimeType.startsWith("video/")
-                url != null && url.isNotEmpty() && hasNoSignature && isVideo
-            }
-            .sortedWith(compareByDescending<JsonObject> {
-                it["bitrate"]?.jsonPrimitive?.long ?: it["bitrate"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
-            })
-
-        muxedFormats.firstOrNull()?.let {
-            val url = it["url"]?.jsonPrimitive?.content ?: ""
-            val mimeType = it["mimeType"]?.jsonPrimitive?.content ?: "video/mp4"
-            Log.d(TAG, "extractStream: Found muxed format, bitrate=${it["bitrate"]}, mime=$mimeType")
-            return StreamResult(url, mimeType, false)
-        }
-
-        // Priority 4: Adaptive video formats (video-only, but ExoPlayer can handle these)
-        val adaptiveVideo = adaptiveFormats.mapNotNull { it as? JsonObject }
-            .filter { f ->
-                val url = f["url"]?.jsonPrimitive?.content
-                val hasNoSignature = f["signatureCipher"] == null
-                val mimeType = f["mimeType"]?.jsonPrimitive?.content ?: ""
-                val isVideo = mimeType.startsWith("video/")
-                url != null && url.isNotEmpty() && hasNoSignature && isVideo
-            }
-            .sortedWith(compareByDescending<JsonObject> {
-                it["bitrate"]?.jsonPrimitive?.long ?: it["bitrate"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
-            })
-
-        adaptiveVideo.firstOrNull()?.let {
-            val url = it["url"]?.jsonPrimitive?.content ?: ""
-            val mimeType = it["mimeType"]?.jsonPrimitive?.content ?: "video/mp4"
-            Log.d(TAG, "extractStream: Found adaptive video, bitrate=${it["bitrate"]}, mime=$mimeType")
-            return StreamResult(url, mimeType, true)
-        }
-
-        // Priority 5: Audio-only fallback (for music content)
-        val adaptiveAudio = adaptiveFormats.mapNotNull { it as? JsonObject }
-            .filter { f ->
-                val url = f["url"]?.jsonPrimitive?.content
-                val hasNoSignature = f["signatureCipher"] == null
-                val mimeType = f["mimeType"]?.jsonPrimitive?.content ?: ""
-                val isAudio = mimeType.startsWith("audio/")
-                url != null && url.isNotEmpty() && hasNoSignature && isAudio
-            }
-            .sortedWith(compareByDescending<JsonObject> {
-                it["bitrate"]?.jsonPrimitive?.long ?: it["bitrate"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
-            })
-
-        adaptiveAudio.firstOrNull()?.let {
-            val url = it["url"]?.jsonPrimitive?.content ?: ""
-            val mimeType = it["mimeType"]?.jsonPrimitive?.content ?: "audio/mp4"
-            Log.d(TAG, "extractStream: Found audio-only fallback, mime=$mimeType")
-            return StreamResult(url, mimeType, true)
-        }
-
-        Log.w(TAG, "extractStream: No playable stream found. formats=${formats.size}, adaptive=${adaptiveFormats.size}")
-        return null
-    }
-
-    data class ClientConfig(val name: String, val version: String, val userAgent: String, val clientName: String)
     data class StreamResult(val url: String, val mimeType: String, val adaptive: Boolean)
     data class Comment(val id: String, val user: String, val text: String, val likes: String, val avatar: String, val publishedTime: String)
     private data class RecommendationSignals(
