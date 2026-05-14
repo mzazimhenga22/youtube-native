@@ -4,17 +4,23 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.youtubekids.youtube.data.repository.YouTubeRepository
 
 @androidx.annotation.OptIn(UnstableApi::class)
 fun ExoPlayer.setYouTubeStream(stream: YouTubeRepository.StreamResult) {
+    stop()
+    clearMediaItems()
+
+    val dataSourceFactory = DefaultHttpDataSource.Factory()
+        .setUserAgent(YOUTUBE_USER_AGENT)
+        .setAllowCrossProtocolRedirects(true)
+        .setDefaultRequestProperties(YOUTUBE_REQUEST_HEADERS)
+    val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+
     val audioUrl = stream.audioUrl
     if (audioUrl != null) {
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent("Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36")
-
         val videoItem = MediaItem.Builder()
             .setUri(stream.url)
             .setMimeType(stream.mimeType)
@@ -24,8 +30,8 @@ fun ExoPlayer.setYouTubeStream(stream: YouTubeRepository.StreamResult) {
             .setMimeType(stream.audioMimeType ?: "audio/mp4")
             .build()
 
-        val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(videoItem)
-        val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(audioItem)
+        val videoSource = mediaSourceFactory.createMediaSource(videoItem)
+        val audioSource = mediaSourceFactory.createMediaSource(audioItem)
         setMediaSource(MergingMediaSource(videoSource, audioSource))
         return
     }
@@ -36,5 +42,14 @@ fun ExoPlayer.setYouTubeStream(stream: YouTubeRepository.StreamResult) {
         stream.mimeType.contains("dash", ignoreCase = true)) {
         builder.setMimeType(stream.mimeType)
     }
-    setMediaItem(builder.build())
+    setMediaSource(mediaSourceFactory.createMediaSource(builder.build()))
 }
+
+private const val YOUTUBE_USER_AGENT =
+    "Mozilla/5.0 (Android) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36"
+
+private val YOUTUBE_REQUEST_HEADERS = mapOf(
+    "Accept-Language" to "en-US,en;q=0.9",
+    "Origin" to "https://www.youtube.com",
+    "Referer" to "https://www.youtube.com/"
+)

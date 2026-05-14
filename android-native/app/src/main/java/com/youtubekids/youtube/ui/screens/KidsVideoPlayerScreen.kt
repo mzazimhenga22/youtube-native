@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -41,6 +42,7 @@ fun KidsVideoPlayerScreen(
     exoPlayer: ExoPlayer,
     onClose: () -> Unit
 ) {
+    var currentVideo by remember { mutableStateOf(video) }
     var isPlaying by remember { mutableStateOf(true) }
     var progress by remember { mutableFloatStateOf(0f) }
     var controlsVisible by remember { mutableStateOf(true) }
@@ -48,26 +50,41 @@ fun KidsVideoPlayerScreen(
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // 1. Fetch Stream and Related Videos
-    LaunchedEffect(video.id) {
+    // 1. Fetch Stream
+    LaunchedEffect(currentVideo.id) {
         loading = true
         error = null
+        progress = 0f
+        controlsVisible = true
         try {
-            val stream = repository.getStream(video.id)
-            if (stream?.url != null) {
+            val stream = repository.getStream(currentVideo.id)
+            if (stream != null) {
                 exoPlayer.setYouTubeStream(stream)
                 exoPlayer.prepare()
                 exoPlayer.playWhenReady = true
-                
-                // Fetch related kids content
-                upNext = repository.getKidsCategory("explore").shuffled().take(10)
+                exoPlayer.play()
+                isPlaying = true
+                loading = false
             } else {
                 error = "Oops! This video is sleeping."
+                loading = false
             }
         } catch (e: Exception) {
             error = "Network issue. Try again!"
-        } finally {
             loading = false
+        }
+    }
+
+    // Fetch related kids content separately so it never blocks playback.
+    LaunchedEffect(currentVideo.id) {
+        upNext = try {
+            repository.getKidsUpNext(currentVideo.id)
+                .filter { it.id.isNotBlank() && it.id != currentVideo.id }
+                .ifEmpty { repository.getKidsCategory("explore") }
+                .distinctBy { it.id }
+                .take(10)
+        } catch (_: Exception) {
+            emptyList()
         }
     }
 
@@ -81,18 +98,38 @@ fun KidsVideoPlayerScreen(
         }
     }
 
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                isPlaying = playing
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    loading = false
+                }
+            }
+
+            override fun onPlayerError(e: PlaybackException) {
+                error = "Playback failed. Try another video."
+                loading = false
+                isPlaying = false
+            }
+        }
+
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+        }
+    }
+
     // Auto-hide controls
     LaunchedEffect(controlsVisible) {
         if (controlsVisible) {
             delay(8000) // Longer delay for kids
             controlsVisible = false
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            exoPlayer.stop()
-            exoPlayer.clearMediaItems()
         }
     }
 
@@ -128,7 +165,7 @@ fun KidsVideoPlayerScreen(
         // Overlay
         if (controlsVisible && !loading && error == null) {
             KidsVideoPlayerOverlay(
-                title = video.title,
+                title = currentVideo.title,
                 isPlaying = isPlaying,
                 progress = progress,
                 upNext = upNext,
@@ -138,8 +175,7 @@ fun KidsVideoPlayerScreen(
                     exoPlayer.playWhenReady = isPlaying
                 },
                 onSelectVideo = { nextVideo ->
-                    // Navigation logic handled by parent (MainActivity)
-                    // But here we can just update the current video if needed
+                    currentVideo = nextVideo.copy(contentType = "kids")
                 }
             )
         }

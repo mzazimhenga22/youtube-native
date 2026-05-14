@@ -3,11 +3,12 @@ package com.youtubekids.youtube.ui.components
 
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -342,61 +343,90 @@ fun MusicPlayerOverlay(
             Spacer(modifier = Modifier.width(48.dp))
 
             // ── Right: Up Next ──
-            Column(
-                modifier = Modifier.width(320.dp).fillMaxHeight().padding(vertical = 20.dp)
+            var panelVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(400L)
+                panelVisible = true
+            }
+
+            AnimatedVisibility(
+                visible = panelVisible,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+                modifier = Modifier.width(360.dp).fillMaxHeight().padding(vertical = 20.dp)
             ) {
-                val visibleRecommendations = recommendations
-                    .filter { it.id.isNotBlank() && it.id != video.id }
-                    .distinctBy { it.id }
-                    .take(20)
+                Column {
+                    val visibleRecommendations = recommendations
+                        .filter { it.id.isNotBlank() && it.id != video.id }
+                        .distinctBy { it.id }
+                        .take(20)
 
-                Text("Up Next", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Up Next",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White.copy(alpha = 0.04f))
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(visibleRecommendations, key = { it.id }) { item ->
-                        Surface(
-                            onClick = { onVideoClick(item) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
-                            colors = ClickableSurfaceDefaults.colors(
-                                containerColor = Color.White.copy(alpha = 0.04f),
-                                focusedContainerColor = Color.White
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        itemsIndexed(visibleRecommendations, key = { _, item -> item.id }) { index, item ->
+                            var itemVisible by remember { mutableStateOf(false) }
+                            LaunchedEffect(Unit) {
+                                kotlinx.coroutines.delay(100L * index)
+                                itemVisible = true
+                            }
+
+                            AnimatedVisibility(
+                                visible = itemVisible,
+                                enter = slideInHorizontally(initialOffsetX = { 40 }) + fadeIn()
                             ) {
-                                AsyncImage(
-                                    model = item.thumbnail,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        item.title,
-                                        color = LocalContentColor.current,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        item.channel,
-                                        color = LocalContentColor.current.copy(alpha = 0.5f),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                Surface(
+                                    onClick = { onVideoClick(item) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+                                    colors = ClickableSurfaceDefaults.colors(
+                                        containerColor = Color.White.copy(alpha = 0.04f),
+                                        focusedContainerColor = Color.White
+                                    ),
+                                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        AsyncImage(
+                                            model = item.thumbnail,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(52.dp).clip(RoundedCornerShape(10.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        Spacer(modifier = Modifier.width(14.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                item.title,
+                                                color = LocalContentColor.current,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                item.channel,
+                                                color = LocalContentColor.current.copy(alpha = 0.6f),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

@@ -1,6 +1,7 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
 package com.youtubekids.youtube.ui.screens
 
+import android.graphics.Color as AndroidColor
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.animation.*
@@ -37,6 +38,7 @@ import androidx.tv.material3.*
 import coil.compose.AsyncImage
 import com.youtubekids.youtube.data.model.Video
 import com.youtubekids.youtube.data.repository.YouTubeRepository
+import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -65,8 +67,10 @@ fun ShortsPlayerScreen(
     // Stream state — managed at the screen level, not per-page
     var streamLoading by remember { mutableStateOf(true) }
     var streamReady by remember { mutableStateOf(false) }
+    var videoFrameReady by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(true) }
     var progress by remember { mutableFloatStateOf(0f) }
+    var playbackError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         val related = repository.search("shorts viral")
@@ -83,6 +87,9 @@ fun ShortsPlayerScreen(
         val video = shorts.getOrNull(pagerState.currentPage) ?: return@LaunchedEffect
         streamLoading = true
         streamReady = false
+        videoFrameReady = false
+        playbackError = null
+        progress = 0f
 
         // Stop previous playback
         exoPlayer.stop()
@@ -94,10 +101,14 @@ fun ShortsPlayerScreen(
                 exoPlayer.setYouTubeStream(stream)
                 exoPlayer.prepare()
                 exoPlayer.playWhenReady = true
+                exoPlayer.play()
                 isPlaying = true
-                streamReady = true
+            } else {
+                playbackError = "Unable to play this Short"
             }
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+            playbackError = "Unable to play this Short"
+        }
         streamLoading = false
     }
 
@@ -116,6 +127,29 @@ fun ShortsPlayerScreen(
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    streamReady = true
+                    streamLoading = false
+                } else if (playbackState == Player.STATE_BUFFERING && !videoFrameReady) {
+                    streamLoading = true
+                }
+            }
+
+            override fun onRenderedFirstFrame() {
+                videoFrameReady = true
+                streamReady = true
+                streamLoading = false
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                playbackError = "Unable to play this Short"
+                streamLoading = false
+                streamReady = false
+                videoFrameReady = false
+                isPlaying = false
             }
         }
         exoPlayer.addListener(listener)
@@ -196,6 +230,10 @@ fun ShortsPlayerScreen(
                             androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.4f))
                         )
                     ),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.Black,
+                        focusedContainerColor = Color.Black
+                    ),
                     glow = ClickableSurfaceDefaults.glow(
                         focusedGlow = Glow(
                             elevationColor = Color.White.copy(alpha = 0.1f),
@@ -204,12 +242,24 @@ fun ShortsPlayerScreen(
                     )
                 ) {
                     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                        AsyncImage(
+                            model = video.thumbnail,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            alpha = if (isCurrentPage && videoFrameReady) 0f else 0.75f
+                        )
+
                         // Show the PlayerView ONLY on the current active page
-                        if (isCurrentPage && streamReady) {
+                        if (isCurrentPage && streamReady && playbackError == null) {
                             AndroidView(
                                 factory = { ctx ->
                                     PlayerView(ctx).apply {
                                         useController = false
+                                        setUseArtwork(false)
+                                        setKeepContentOnPlayerReset(false)
+                                        setShutterBackgroundColor(AndroidColor.BLACK)
+                                        setBackgroundColor(AndroidColor.BLACK)
                                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                                         layoutParams = FrameLayout.LayoutParams(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -226,15 +276,6 @@ fun ShortsPlayerScreen(
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
-                        } else {
-                            // Thumbnail fallback when not active or stream loading
-                            AsyncImage(
-                                model = video.thumbnail,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop,
-                                alpha = 0.6f
-                            )
                         }
 
                         // Loading spinner
@@ -244,6 +285,22 @@ fun ShortsPlayerScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 SingularityDot()
+                            }
+                        }
+
+                        if (isCurrentPage && playbackError != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.45f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = playbackError!!,
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
 

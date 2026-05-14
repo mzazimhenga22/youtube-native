@@ -2,6 +2,7 @@
 package com.youtubekids.youtube.ui.components
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -13,6 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.tv.material3.*
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -86,20 +90,39 @@ fun VideoPlayerOverlay(
 
         AnimatedVisibility(
             visible = isVisible,
-            enter = fadeIn(),
-            exit = fadeOut()
+            enter = fadeIn(animationSpec = tween(500)),
+            exit = fadeOut(animationSpec = tween(500))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 48.dp, top = 48.dp, end = 48.dp, bottom = 32.dp)
             ) {
+                // Background gradient for better readability
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.4f),
+                                    Color.Black.copy(alpha = 0.95f)
+                                )
+                            )
+                        )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 56.dp, top = 56.dp, end = 56.dp, bottom = 40.dp)
+                ) {
+
                 // ── Top-right: Video metadata ──
                 Column(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .width(320.dp)
-                        .padding(top = 48.dp),
+                        .width(320.dp),
                     verticalArrangement = Arrangement.Top
                 ) {
                     Text(
@@ -261,27 +284,40 @@ fun VideoPlayerOverlay(
 
                     // YouTube-style recommendation shelves under the controls.
                     if (shelves.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 430.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
-                            contentPadding = PaddingValues(bottom = 8.dp)
+                                .heightIn(max = 450.dp),
+                            verticalArrangement = Arrangement.spacedBy(24.dp),
+                            contentPadding = PaddingValues(bottom = 24.dp)
                         ) {
-                            items(shelves) { shelf ->
-                                RecommendationShelfRow(
-                                    shelf = shelf,
-                                    onVideoClick = { rec ->
-                                        onVideoClick(rec)
-                                        onUserInteraction()
-                                    }
-                                )
+                            itemsIndexed(shelves) { index, shelf ->
+                                var itemVisible by remember { mutableStateOf(false) }
+                                LaunchedEffect(Unit) {
+                                    kotlinx.coroutines.delay(100L * index)
+                                    itemVisible = true
+                                }
+
+                                AnimatedVisibility(
+                                    visible = itemVisible,
+                                    enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    RecommendationShelfRow(
+                                        shelf = shelf,
+                                        onVideoClick = { rec ->
+                                            onVideoClick(rec)
+                                            onUserInteraction()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
+        }
         }
 
         if (showStats) {
@@ -300,16 +336,17 @@ private fun RecommendationShelfRow(
         Text(
             text = shelf.title,
             color = Color.White,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
+            fontSize = 20.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 0.5.sp,
+            modifier = Modifier.padding(bottom = 12.dp)
         )
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(end = 48.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(end = 56.dp)
         ) {
             items(shelf.videos, key = { it.id }) { rec ->
-                UpNextVideoCard(video = rec, width = 230.dp) {
+                UpNextVideoCard(video = rec, width = 260.dp) {
                     onVideoClick(rec)
                 }
             }
@@ -352,15 +389,31 @@ private fun UpNextVideoCard(
     width: androidx.compose.ui.unit.Dp = 280.dp,
     onClick: () -> Unit
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     Surface(
         onClick = onClick,
-        modifier = Modifier.width(width),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+        modifier = Modifier
+            .width(width)
+            .onFocusChanged { isFocused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
-            focusedContainerColor = Color.White.copy(alpha = 0.1f)
+            focusedContainerColor = Color.White.copy(alpha = 0.15f)
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f)
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.8f)),
+                shape = RoundedCornerShape(16.dp)
+            )
+        ),
+        glow = ClickableSurfaceDefaults.glow(
+            focusedGlow = Glow(
+                elevationColor = Color.White.copy(alpha = 0.1f),
+                elevation = 10.dp
+            )
+        )
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
             Box {
@@ -370,53 +423,67 @@ private fun UpNextVideoCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop
                 )
-                if (video.duration.isNotEmpty()) {
+
+                // Duration pill
+                if (video.duration.isNotEmpty() && video.duration != "0:00") {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(6.dp)
-                            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .padding(8.dp)
+                            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = video.duration,
                             color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
+
+                // Overlay for focused state to make it pop
+                if (isFocused) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.White.copy(alpha = 0.05f))
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = video.title,
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
+                color = if (isFocused) Color.White else Color.White.copy(alpha = 0.9f),
+                fontSize = 14.sp,
+                fontWeight = if (isFocused) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 18.sp
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = video.channel,
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (video.views.isNotEmpty()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = video.views,
-                    color = Color.White.copy(alpha = 0.5f),
+                    text = video.channel,
+                    color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+                if (video.views.isNotEmpty()) {
+                    Text(
+                        text = " • ${video.views}",
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }

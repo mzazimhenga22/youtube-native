@@ -286,13 +286,22 @@ fun VideoPlayerScreen(
         }
     }
 
-    val playerPaddingStart by animateDpAsState(targetValue = if (isOverlayVisible) 48.dp else 0.dp)
-    val playerPaddingTop by animateDpAsState(targetValue = if (isOverlayVisible) 48.dp else 0.dp)
-    val playerPaddingEnd by animateDpAsState(targetValue = if (isOverlayVisible) 400.dp else 0.dp)
-    val playerPaddingBottom by animateDpAsState(targetValue = if (isOverlayVisible) 520.dp else 0.dp)
     val overlayBackgroundAlpha by animateFloatAsState(targetValue = if (isOverlayVisible) 0.45f else 0f)
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        val playerPaddingStart by animateDpAsState(
+            targetValue = if (isOverlayVisible) minOf(48.dp, maxWidth * 0.04f) else 0.dp
+        )
+        val playerPaddingTop by animateDpAsState(
+            targetValue = if (isOverlayVisible) minOf(48.dp, maxHeight * 0.08f) else 0.dp
+        )
+        val playerPaddingEnd by animateDpAsState(
+            targetValue = if (isOverlayVisible) minOf(400.dp, maxWidth * 0.32f) else 0.dp
+        )
+        val playerPaddingBottom by animateDpAsState(
+            targetValue = if (isOverlayVisible) minOf(520.dp, maxHeight * 0.42f) else 0.dp
+        )
+
         // The Player
         Box(
             modifier = Modifier

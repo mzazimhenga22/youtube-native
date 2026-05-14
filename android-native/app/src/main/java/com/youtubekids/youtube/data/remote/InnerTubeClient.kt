@@ -412,10 +412,10 @@ class InnerTubeClient @Inject constructor() {
      * their URLs on the fly using the parsed cipher operations.
      *
      * Priority:
-     *   1. HLS manifest
+     *   1. Live HLS/DASH manifests
      *   2. Muxed progressive video+audio
      *   3. Merged adaptive video+audio
-     *   4. DASH manifest
+     *   4. HLS/DASH manifests
      *
      * Single adaptive formats are only used as a video+audio pair. Returning
      * one track by itself causes either audio with no video or no audio.
@@ -423,15 +423,12 @@ class InnerTubeClient @Inject constructor() {
     fun chooseStream(info: VideoInfo): StreamResult? {
         val sd = info.streamingData ?: return null
 
-        // 1. HLS manifests contain both audio and video variants and are safe
-        // to play as a single MediaItem.
-        if (sd.hlsManifestUrl != null) {
+        // Live manifests describe the moving set of tracks and segment windows.
+        if (info.isLive && sd.hlsManifestUrl != null) {
             return StreamResult(sd.hlsManifestUrl, "application/x-mpegURL", "auto",
                 isAdaptive = false, isLive = info.isLive, itag = null)
         }
 
-        // Live DASH manifests also describe both audio and video tracks. The app
-        // already includes media3-exoplayer-dash, so ExoPlayer can parse them.
         if (info.isLive && sd.dashManifestUrl != null) {
             return StreamResult(sd.dashManifestUrl, "application/dash+xml", "auto",
                 isAdaptive = false, isLive = info.isLive, itag = null)
@@ -448,6 +445,11 @@ class InnerTubeClient @Inject constructor() {
         resolveAdaptivePair(sd.adaptiveFormats)?.let {
             Log.d(TAG, "chooseStream(${info.videoId}): Using merged adaptive stream")
             return it
+        }
+
+        if (sd.hlsManifestUrl != null) {
+            return StreamResult(sd.hlsManifestUrl, "application/x-mpegURL", "auto",
+                isAdaptive = false, isLive = info.isLive, itag = null)
         }
 
         if (sd.dashManifestUrl != null) {
@@ -489,12 +491,12 @@ class InnerTubeClient @Inject constructor() {
     private fun videoFormatScore(format: StreamFormat): Int {
         val mime = format.mimeType.lowercase()
         val codecScore = when {
-            mime.contains("avc1") -> 300
-            mime.contains("vp9") || mime.contains("vp09") -> 200
-            mime.contains("av01") -> 100
+            mime.contains("avc1") -> 3_000_000
+            mime.contains("vp9") || mime.contains("vp09") -> 2_000_000
+            mime.contains("av01") -> 1_000_000
             else -> 0
         }
-        val containerScore = if (mime.startsWith("video/mp4")) 50 else 0
+        val containerScore = if (mime.startsWith("video/mp4")) 500_000 else 0
         return codecScore + containerScore + (format.height ?: 0)
     }
 

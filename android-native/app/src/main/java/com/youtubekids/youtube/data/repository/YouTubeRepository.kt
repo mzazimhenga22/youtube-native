@@ -891,7 +891,7 @@ class YouTubeRepository @Inject constructor(
     /**
      * Gets the best playable stream URL for a video.
      * Delegates entirely to [InnerTubeClient] which handles multi-client
-     * rotation and format selection (HLS → muxed → adaptive → audio).
+     * rotation and format selection (muxed → adaptive → manifests).
      */
     suspend fun getStream(videoId: String): StreamResult? = withContext(Dispatchers.IO) {
         Log.d(TAG, "getStream($videoId): Delegating to InnerTubeClient...")
