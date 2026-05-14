@@ -85,32 +85,45 @@ fun VideoPlayerScreen(
     }
     
     val currentProfile by viewModel.currentProfile.collectAsState()
+    val globalStreamUrl by viewModel.globalStreamUrl.collectAsState()
 
     // Fetch data and prepare player
     LaunchedEffect(currentVideo.id, retryKey) {
         isLoading = true
         error = null
         try {
-            // Pause current playback if any
-            exoPlayer.pause()
-            
-            val details = repository.getVideoDetails(currentVideo.id)
-            if (details != null) {
-                // Preserve contentType and duration from original video when details don't provide them
-                currentVideo = details.copy(
-                    contentType = currentVideo.contentType,
-                    duration = if (details.duration.isEmpty()) currentVideo.duration else details.duration
-                )
+            // Check if stream is already pre-loaded and playing (seamless transition from MusicScreen)
+            val preloadedUrl = currentVideo.streamUrl ?: globalStreamUrl
+            val isAlreadyPlaying = preloadedUrl != null && exoPlayer.isPlaying
+
+            // Fire and forget metadata fetching so it doesn't block playback
+            launch {
+                val details = repository.getVideoDetails(currentVideo.id)
+                if (details != null) {
+                    currentVideo = details.copy(
+                        contentType = currentVideo.contentType,
+                        duration = if (details.duration.isEmpty()) currentVideo.duration else details.duration,
+                        streamUrl = currentVideo.streamUrl,
+                        isLive = currentVideo.isLive || details.isLive
+                    )
+                }
             }
 
-            val related = if (currentProfile?.mode == "kids") {
-                repository.getKidsUpNext(currentVideo.id)
-            } else {
-                repository.getUpNext(currentVideo.id)
+            launch {
+                val related = if (currentProfile?.mode == "kids") {
+                    repository.getKidsUpNext(currentVideo.id)
+                } else {
+                    repository.getUpNext(currentVideo.id)
+                }
+                
+                // Fallback for music
+                if (related.isEmpty() && currentVideo.contentType == "music") {
+                    relatedVideos = repository.getMusicHome()
+                } else {
+                    relatedVideos = related
+                }
             }
-            relatedVideos = related
             
-            // Fetch real comments
             launch {
                 val fetchedComments = repository.getComments(currentVideo.id)
                 comments = fetchedComments.map { 
@@ -118,26 +131,39 @@ fun VideoPlayerScreen(
                 }
             }
 
-            val stream = repository.getStream(currentVideo.id)
-            if (stream != null) {
-                val mediaItem = MediaItem.Builder()
-                    .setUri(stream.url)
-                    .setMimeType(stream.mimeType)
-                    .build()
-                
-                exoPlayer.setMediaItem(mediaItem)
-                exoPlayer.prepare()
-                exoPlayer.play()
+            // Immediately start stream logic
+            if (isAlreadyPlaying && preloadedUrl != null) {
+                exoPlayer.volume = 1.0f
                 isPlaying = true
-                
                 viewModel.addToHistory(currentVideo)
-                viewModel.setGlobalPlayback(currentVideo, stream.url)
+                viewModel.setGlobalPlayback(currentVideo, preloadedUrl)
+                isLoading = false
             } else {
-                error = "This video cannot be played right now"
+                exoPlayer.pause()
+                val stream = repository.getStream(currentVideo.id)
+                if (stream != null) {
+                    val builder = MediaItem.Builder().setUri(stream.url)
+                    if (stream.mimeType.contains("mpegURL", ignoreCase = true) ||
+                        stream.mimeType.contains("x-mpegURL", ignoreCase = true)) {
+                        builder.setMimeType(stream.mimeType)
+                    }
+                    val mediaItem = builder.build()
+                    
+                    exoPlayer.setMediaItem(mediaItem)
+                    exoPlayer.prepare()
+                    exoPlayer.play()
+                    isPlaying = true
+                    
+                    viewModel.addToHistory(currentVideo)
+                    viewModel.setGlobalPlayback(currentVideo, stream.url)
+                    isLoading = false
+                } else {
+                    error = "This video cannot be played right now"
+                    isLoading = false
+                }
             }
         } catch (e: Exception) {
             error = "Network error: ${e.localizedMessage}"
-        } finally {
             isLoading = false
         }
     }
@@ -145,7 +171,13 @@ fun VideoPlayerScreen(
     // Progress updates
     LaunchedEffect(exoPlayer) {
         while (true) {
-            if (exoPlayer.duration > 0) {
+            val isLive = currentVideo.isLive || currentVideo.contentType == "live"
+            if (isLive) {
+                // Live streams — show "LIVE" indicator, no progress tracking
+                currentTime = "LIVE"
+                durationText = ""
+                progress = 0f
+            } else if (exoPlayer.duration > 0) {
                 val p = (exoPlayer.currentPosition.toFloat() / exoPlayer.duration).coerceIn(0f, 1f)
                 progress = p
                 currentTime = formatTime(exoPlayer.currentPosition)
@@ -160,7 +192,7 @@ fun VideoPlayerScreen(
                     }
                 }
 
-                // Show Up Next card when 90% through
+                // Show Up Next card when 90% through (not for live)
                 if (p > 0.90f && relatedVideos.isNotEmpty() && !showUpNext) {
                     showUpNext = true
                 }
@@ -217,7 +249,7 @@ fun VideoPlayerScreen(
     val playerPaddingTop by animateDpAsState(targetValue = if (isOverlayVisible) 48.dp else 0.dp)
     val playerPaddingEnd by animateDpAsState(targetValue = if (isOverlayVisible) 400.dp else 0.dp)
     val playerPaddingBottom by animateDpAsState(targetValue = if (isOverlayVisible) 300.dp else 0.dp)
-    val overlayBackgroundAlpha by animateFloatAsState(targetValue = if (isOverlayVisible) 0.95f else 0f)
+    val overlayBackgroundAlpha by animateFloatAsState(targetValue = if (isOverlayVisible) 0.45f else 0f)
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         // The Player
@@ -296,6 +328,7 @@ fun VideoPlayerScreen(
                         currentTime = currentTime,
                         duration = durationText,
                         recommendations = relatedVideos,
+                        exoPlayer = exoPlayer,
                         onTogglePlay = {
                             if (isPlaying) exoPlayer.pause() else exoPlayer.play()
                         },
@@ -308,6 +341,7 @@ fun VideoPlayerScreen(
                                 currentVideo = relatedVideos[0]
                             }
                         },
+                        onVideoClick = { nextVideo -> currentVideo = nextVideo },
                         onClose = onClose
                     )
                 }

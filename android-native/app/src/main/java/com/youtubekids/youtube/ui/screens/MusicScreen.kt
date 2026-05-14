@@ -1,6 +1,8 @@
 @file:OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
 package com.youtubekids.youtube.ui.screens
 
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -16,9 +18,10 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -26,26 +29,45 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import androidx.tv.material3.*
 import coil.compose.AsyncImage
 import com.youtubekids.youtube.data.model.Video
 import com.youtubekids.youtube.ui.components.MusicCard
 import com.youtubekids.youtube.data.repository.YouTubeRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 data class MusicCategory(val label: String, val icon: ImageVector, val color: Color)
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun MusicScreen(
     onVideoClick: (Video) -> Unit,
-    repository: YouTubeRepository
+    repository: YouTubeRepository,
+    exoPlayer: ExoPlayer? = null
 ) {
     var homeMusic by remember { mutableStateOf<List<Video>>(emptyList()) }
     var trendingMusic by remember { mutableStateOf<List<Video>>(emptyList()) }
     var relaxMusic by remember { mutableStateOf<List<Video>>(emptyList()) }
     var focusedVideo by remember { mutableStateOf<Video?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+
+    // Stream preloading state — when a card is focused, we preload the stream
+    var preloadedVideoId by remember { mutableStateOf<String?>(null) }
+    var preloadedStreamUrl by remember { mutableStateOf<String?>(null) }
+    var preloadedMimeType by remember { mutableStateOf<String?>(null) }
+    var isPreloading by remember { mutableStateOf(false) }
+    var isVideoPlaying by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var preloadJob by remember { mutableStateOf<Job?>(null) }
 
     val categories = listOf(
         MusicCategory("My Mix", Icons.Default.Shuffle, Color(0xFFFF0055)),
@@ -67,25 +89,110 @@ fun MusicScreen(
         }
     }
 
+    // Preload video stream when a card gets focus (with debounce)
+    LaunchedEffect(focusedVideo?.id) {
+        val video = focusedVideo ?: return@LaunchedEffect
+        if (video.id == preloadedVideoId && isVideoPlaying) return@LaunchedEffect
+
+        // Cancel previous preload
+        preloadJob?.cancel()
+        isPreloading = true
+        isVideoPlaying = false
+
+        // Debounce — wait 500ms for focus to settle before fetching
+        preloadJob = scope.launch {
+            delay(500)
+            try {
+                val stream = repository.getStream(video.id)
+                if (stream?.url != null && focusedVideo?.id == video.id) {
+                    preloadedVideoId = video.id
+                    preloadedStreamUrl = stream.url
+                    preloadedMimeType = stream.mimeType
+
+                    // Start playing the preview in the background
+                    exoPlayer?.let { player ->
+                        player.stop()
+                        player.clearMediaItems()
+                        val builder = MediaItem.Builder().setUri(stream.url)
+                        if (stream.mimeType.contains("mpegURL", ignoreCase = true)) {
+                            builder.setMimeType(stream.mimeType)
+                        }
+                        player.setMediaItem(builder.build())
+                        player.prepare()
+                        player.playWhenReady = true
+                        player.volume = 0.3f // Low volume for preview
+                        isVideoPlaying = true
+                    }
+                }
+            } catch (_: Exception) { }
+            isPreloading = false
+        }
+    }
+
+    // When navigating away, restore volume
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer?.volume = 1.0f
+        }
+    }
+
+    // Custom click handler that reuses the preloaded stream
+    val onMusicCardClick: (Video) -> Unit = { video ->
+        if (video.id == preloadedVideoId && isVideoPlaying) {
+            // Stream is already playing — just raise volume and navigate
+            exoPlayer?.volume = 1.0f
+            // Pass the video with streamUrl so the player skips re-fetching
+            onVideoClick(video.copy(streamUrl = preloadedStreamUrl))
+        } else {
+            onVideoClick(video)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF050505))) {
         // Visualizer background
         MusicVisualizerBackground()
 
-        // Focused video ambient bg
+        // Focused video ambient bg — now shows LIVE VIDEO when preloaded
         AnimatedContent(
             targetState = focusedVideo,
-            transitionSpec = { fadeIn(tween(1000)) togetherWith fadeOut(tween(500)) },
+            transitionSpec = { fadeIn(tween(800)) togetherWith fadeOut(tween(400)) },
             label = "musicBgFade"
         ) { video ->
             video?.let {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    AsyncImage(
-                        model = it.thumbnail,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        alpha = 0.35f
-                    )
+                    if (isVideoPlaying && exoPlayer != null && video.id == preloadedVideoId) {
+                        // Live video background!
+                        AndroidView(
+                            factory = { context ->
+                                PlayerView(context).apply {
+                                    player = exoPlayer
+                                    useController = false
+                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                    layoutParams = FrameLayout.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                }
+                            },
+                            update = { playerView ->
+                                playerView.player = exoPlayer
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .blur(8.dp)
+                                .alpha(0.45f)
+                        )
+                    } else {
+                        // Fallback to thumbnail
+                        AsyncImage(
+                            model = it.thumbnail,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            alpha = 0.35f
+                        )
+                    }
+                    // Gradient overlay
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -111,7 +218,9 @@ fun MusicScreen(
             item {
                 MusicHero(
                     video = focusedVideo,
-                    onPlayClick = { focusedVideo?.let { onVideoClick(it) } }
+                    isPreloading = isPreloading,
+                    isVideoPlaying = isVideoPlaying,
+                    onPlayClick = { focusedVideo?.let { onMusicCardClick(it) } }
                 )
             }
 
@@ -162,13 +271,13 @@ fun MusicScreen(
 
             // Rails
             item {
-                MusicRail("Your Favorites", homeMusic, true, onVideoClick) { focusedVideo = it }
+                MusicRail("Your Favorites", homeMusic, true, onMusicCardClick) { focusedVideo = it }
             }
             item {
-                MusicRail("Trending Now", trendingMusic, false, onVideoClick) { focusedVideo = it }
+                MusicRail("Trending Now", trendingMusic, false, onMusicCardClick) { focusedVideo = it }
             }
             item {
-                MusicRail("Relaxing Vibes", relaxMusic, true, onVideoClick) { focusedVideo = it }
+                MusicRail("Relaxing Vibes", relaxMusic, true, onMusicCardClick) { focusedVideo = it }
             }
         }
     }
@@ -237,23 +346,75 @@ private fun MusicVisualizerBackground() {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun MusicHero(video: Video?, onPlayClick: () -> Unit) {
+fun MusicHero(
+    video: Video?,
+    isPreloading: Boolean = false,
+    isVideoPlaying: Boolean = false,
+    onPlayClick: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "heroAnim")
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 80.dp, end = 80.dp, top = 20.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        // Badge
-        Box(
-            modifier = Modifier
-                .background(
-                    Brush.horizontalGradient(listOf(Color(0xFFFF0055), Color(0xFF7700FF))),
-                    RoundedCornerShape(8.dp)
-                )
-                .padding(horizontal = 12.dp, vertical = 4.dp)
+        // Badge — changes based on preview state
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("NOW PLAYING", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
+            Box(
+                modifier = Modifier
+                    .background(
+                        Brush.horizontalGradient(listOf(Color(0xFFFF0055), Color(0xFF7700FF))),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Text("NOW PLAYING", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
+            }
+
+            // Live preview indicator
+            if (isVideoPlaying) {
+                Row(
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Animated equalizer bars
+                    repeat(3) { i ->
+                        val barHeight by infiniteTransition.animateFloat(
+                            initialValue = 3f,
+                            targetValue = 10f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(350 + i * 120, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "heroBar$i"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(2.5.dp)
+                                .height(barHeight.dp)
+                                .background(Color(0xFF00FF99), RoundedCornerShape(1.dp))
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text("PREVIEWING", color = Color(0xFF00FF99), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                }
+            } else if (isPreloading) {
+                Box(
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text("LOADING...", color = Color.White.copy(alpha = 0.4f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))

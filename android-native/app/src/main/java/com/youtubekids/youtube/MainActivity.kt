@@ -165,10 +165,12 @@ class MainActivity : ComponentActivity() {
                                     MusicScreen(
                                         onVideoClick = { video ->
                                             val tagged = video.copy(contentType = "music")
-                                            viewModel.setGlobalPlayback(tagged, null)
+                                            // If streamUrl is pre-loaded from preview, pass it along
+                                            viewModel.setGlobalPlayback(tagged, video.streamUrl)
                                             navController.navigate("music-player")
                                         },
-                                        repository = repository
+                                        repository = repository,
+                                        exoPlayer = exoPlayer
                                     )
                                 }
                                 composable("movies") {
@@ -265,7 +267,7 @@ class MainActivity : ComponentActivity() {
                                 composable("live") {
                                     LiveGuideScreen(
                                         onVideoClick = { video ->
-                                            val tagged = video.copy(contentType = "live")
+                                            val tagged = video.copy(contentType = "live", isLive = true)
                                             viewModel.setGlobalPlayback(tagged, null)
                                             navController.navigate("player")
                                         },

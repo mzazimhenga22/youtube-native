@@ -53,7 +53,12 @@ fun KidsVideoPlayerScreen(
         try {
             val stream = repository.getStream(video.id)
             if (stream?.url != null) {
-                exoPlayer.setMediaItem(MediaItem.fromUri(stream.url))
+                val builder = MediaItem.Builder().setUri(stream.url)
+                // Only set mimeType explicitly for HLS streams
+                if (stream.mimeType.contains("mpegURL", ignoreCase = true)) {
+                    builder.setMimeType(stream.mimeType)
+                }
+                exoPlayer.setMediaItem(builder.build())
                 exoPlayer.prepare()
                 exoPlayer.playWhenReady = true
                 
@@ -172,15 +177,54 @@ fun KidsVideoPlayerScreen(
             }
         }
 
+        // Focus management
+        val backgroundFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+
+        LaunchedEffect(controlsVisible) {
+            if (!controlsVisible && !loading && error == null) {
+                try {
+                    backgroundFocusRequester.requestFocus()
+                } catch (e: Exception) {}
+            }
+        }
+
         // Interaction Area to show controls
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .focusable()
-                .onKeyEvent {
-                    controlsVisible = true
-                    false
-                }
-        )
+        if (!controlsVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .androidx.compose.ui.focus.focusRequester(backgroundFocusRequester)
+                    .focusable()
+                    .onKeyEvent { event ->
+                        if (event.type == androidx.compose.ui.input.key.KeyEventType.KeyDown) {
+                            when (event.nativeKeyEvent.keyCode) {
+                                android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                                android.view.KeyEvent.KEYCODE_SPACE -> {
+                                    isPlaying = !isPlaying
+                                    exoPlayer.playWhenReady = isPlaying
+                                    controlsVisible = true
+                                    return@onKeyEvent true
+                                }
+                                android.view.KeyEvent.KEYCODE_BACK,
+                                android.view.KeyEvent.KEYCODE_ESCAPE -> {
+                                    // If controls are hidden, let the system handle Back to close the screen
+                                    return@onKeyEvent false
+                                }
+                                else -> {
+                                    // Any other key shows the controls
+                                    controlsVisible = true
+                                    return@onKeyEvent true
+                                }
+                            }
+                        }
+                        false
+                    }
+            )
+        }
+
+        // Handle back button when controls are visible
+        androidx.activity.compose.BackHandler(enabled = controlsVisible) {
+            controlsVisible = false
+        }
     }
 }

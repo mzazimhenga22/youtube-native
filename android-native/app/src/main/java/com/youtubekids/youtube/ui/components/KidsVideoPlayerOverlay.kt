@@ -46,6 +46,15 @@ fun KidsVideoPlayerOverlay(
     onSelectVideo: (Video) -> Unit
 ) {
     val safeProgress = progress.coerceIn(0f, 1f)
+    val playPauseFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        try {
+            playPauseFocusRequester.requestFocus()
+        } catch (e: Exception) {
+            // Ignore focus request failures during quick transitions
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -120,7 +129,9 @@ fun KidsVideoPlayerOverlay(
                 // Play/Pause button
                 Surface(
                     onClick = onTogglePlay,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .androidx.compose.ui.focus.focusRequester(playPauseFocusRequester),
                     shape = ClickableSurfaceDefaults.shape(CircleShape),
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
                     colors = ClickableSurfaceDefaults.colors(containerColor = KidsRed),

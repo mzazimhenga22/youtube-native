@@ -26,11 +26,12 @@ object PlayerModule {
             .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             .setEnableDecoderFallback(true)
 
-        // 2. Optimize Track Selection for TV (Prefer High Resolution)
+        // 2. Track Selection — let ExoPlayer pick the best track from the stream
+        //    We already select stream quality in InnerTubeClient.chooseStream(),
+        //    so don't restrict resolution here.
         val trackSelector = DefaultTrackSelector(context).apply {
             setParameters(
                 buildUponParameters()
-                    .setMaxVideoSizeSd() // Start at SD but quickly switch up
                     .setPreferredAudioLanguage("en")
                     .setForceHighestSupportedBitrate(true)
             )

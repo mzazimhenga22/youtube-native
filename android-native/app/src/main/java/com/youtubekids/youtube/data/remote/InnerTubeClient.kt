@@ -409,6 +409,16 @@ class InnerTubeClient @Inject constructor() {
     /**
      * Selects the best stream. Now handles ciphered formats by deciphering
      * their URLs on the fly using the parsed cipher operations.
+     *
+     * Priority:
+     *   1. HLS for live content
+     *   2. Muxed (progressive) video+audio — works with simple MediaItem.fromUri()
+     *   3. Adaptive video+audio combined — only if no muxed stream available
+     *   4. Audio-only fallback
+     *
+     * NOTE: DASH manifests are intentionally skipped because they require
+     * DashMediaSource; a plain MediaItem.fromUri() cannot parse them and
+     * results in audio-only or no playback.
      */
     fun chooseStream(info: VideoInfo): StreamResult? {
         val sd = info.streamingData ?: return null
@@ -419,23 +429,35 @@ class InnerTubeClient @Inject constructor() {
                 isAdaptive = false, isLive = true, itag = null)
         }
 
-        // 2. DASH manifest
-        sd.dashManifestUrl?.let {
-            return StreamResult(it, "application/dash+xml", "auto",
-                isAdaptive = true, isLive = false, itag = null)
-        }
+        // 2. Muxed video+audio (progressive) — PREFERRED for simple playback
+        //    These contain both video and audio in a single MP4 container.
+        resolveFormat(sd.formats.filter { it.hasVideo && it.hasAudio }.sortedByDescending { it.bitrate })
+            ?.let {
+                Log.d(TAG, "chooseStream(${info.videoId}): Using muxed progressive stream")
+                return it.copy(isAdaptive = false)
+            }
 
-        // 3. Muxed video+audio (progressive) — best single-stream experience
+        // 3. Muxed formats that have video (may lack audio marker but still progressive)
         resolveFormat(sd.formats.filter { it.hasVideo }.sortedByDescending { it.bitrate })
-            ?.let { return it.copy(isAdaptive = false) }
+            ?.let {
+                Log.d(TAG, "chooseStream(${info.videoId}): Using muxed video stream")
+                return it.copy(isAdaptive = false)
+            }
 
-        // 4. Adaptive video (highest bitrate)
+        // 4. Adaptive video (highest bitrate) — NOTE: this is video-only,
+        //    will have no audio unless ExoPlayer merges tracks.
         resolveFormat(sd.adaptiveFormats.filter { it.hasVideo }.sortedByDescending { it.bitrate })
-            ?.let { return it.copy(isAdaptive = true) }
+            ?.let {
+                Log.w(TAG, "chooseStream(${info.videoId}): Falling back to adaptive video-only")
+                return it.copy(isAdaptive = true)
+            }
 
         // 5. Audio-only fallback
         resolveFormat(sd.adaptiveFormats.filter { it.hasAudio && !it.hasVideo }.sortedByDescending { it.bitrate })
-            ?.let { return it.copy(isAdaptive = true) }
+            ?.let {
+                Log.w(TAG, "chooseStream(${info.videoId}): Falling back to audio-only")
+                return it.copy(isAdaptive = true)
+            }
 
         Log.w(TAG, "chooseStream(${info.videoId}): No playable stream")
         return null
@@ -443,14 +465,18 @@ class InnerTubeClient @Inject constructor() {
 
     /**
      * Resolves the first playable format from the list, deciphering if needed.
+     * Strips codec parameters from mimeType (e.g. 'video/mp4; codecs="avc1..."'
+     * → 'video/mp4') so ExoPlayer doesn't get confused by explicit codec strings.
      */
     private fun resolveFormat(formats: List<StreamFormat>): StreamResult? {
         for (f in formats) {
             val url = resolveUrl(f)
             if (url != null) {
-                Log.d(TAG, "Resolved itag=${f.itag} ${f.qualityLabel ?: f.quality} ciphered=${f.isCiphered}")
+                Log.d(TAG, "Resolved itag=${f.itag} ${f.qualityLabel ?: f.quality} ciphered=${f.isCiphered} mime=${f.mimeType}")
+                // Strip codec params — ExoPlayer infers codecs from the container
+                val cleanMime = f.mimeType.substringBefore(";").trim()
                 return StreamResult(
-                    url = url, mimeType = f.mimeType,
+                    url = url, mimeType = cleanMime,
                     quality = f.qualityLabel ?: f.quality,
                     isAdaptive = false, isLive = false, itag = f.itag
                 )
