@@ -259,6 +259,7 @@ fun VideoPlayerScreen(
     DisposableEffect(exoPlayer) {
         val listener = object : Player.Listener {
             override fun onPlayerError(e: PlaybackException) {
+                android.util.Log.e("VideoPlayerScreen", "Player error: ${e.errorCodeName} - ${e.message}")
                 error = "Playback failed: ${e.message}"
                 isLoading = false
             }
@@ -266,6 +267,18 @@ fun VideoPlayerScreen(
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
                 viewModel.setGlobalPlaying(playing)
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    isLoading = false
+                    android.util.Log.d("VideoPlayerScreen", "Player STATE_READY — tracks: ${exoPlayer.currentTracks.groups.size}")
+                }
+            }
+
+            override fun onRenderedFirstFrame() {
+                isLoading = false
+                android.util.Log.d("VideoPlayerScreen", "First video frame rendered")
             }
         }
         exoPlayer.addListener(listener)
